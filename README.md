@@ -15,7 +15,9 @@ Designed for vacation planning, travel itineraries, field service, and geo-tagge
 - 🔍 **Multiple Geocoding Providers**:
   - **OpenStreetMap Nominatim** *(Default, free, zero API key required)* with OSM usage policy compliance.
   - **Google Places API (New)** *(Optional)* with server-side API key protection.
-- 🌓 **Adaptive Dark / Light Themes**: Automatically switches between CARTO Voyager (light) and Dark Matter (dark) tile layers to match your Vikunja theme.
+- 🌓 **Zero-Key Dark & Light Modes**: 
+  - **Default (No API Key Required)**: Uses official OpenStreetMap tiles (`tile.openstreetmap.org`) with seamless CSS dark mode inversion when switching to dark theme.
+  - **Optional CARTO Basemaps**: If you have a [CARTO API key](https://carto.com/basemaps/), set `CARTO_BASEMAPS_API_KEY` to use native CARTO Voyager and Dark Matter tiles.
 - 💾 **Native Database Persistence**: Uses Vikunja's Yaegi migration plugin system to manage the `task_locations` table across SQLite, PostgreSQL, and MySQL.
 - 🧹 **Automatic Cleanup**: Listens to Vikunja's `TaskDeletedEvent` via Watermill to prune location records when tasks are deleted.
 
@@ -90,8 +92,11 @@ environment:
   # Provider: "nominatim" (default) or "google"
   VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "nominatim"
   # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
-  # CARTO_BASEMAPS_API_KEY: ""
+  # Optional CARTO basemaps API key (required ONLY if using CARTO tiles instead of OpenStreetMap)
+  # CARTO_BASEMAPS_API_KEY: "your-carto-key"
 ```
+
+> **Note on Map Tiles**: By default, the plugin uses standard OpenStreetMap tiles (`https://tile.openstreetmap.org/`) and requires **no API key**. If you configure `CARTO_BASEMAPS_API_KEY`, it will switch to CARTO's Voyager/Dark Matter tiles. (Without an API key, CARTO watermarks tiles with "API KEY REQUIRED", so leave it unset to use OpenStreetMap).
 
 ### Or in `config.yml`
 ```yaml

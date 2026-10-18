@@ -29,6 +29,7 @@
 				<div
 					ref="mapContainer"
 					class="leaflet-map-canvas"
+					:class="{'dark-osm-tiles': isUsingOsmFallback && isDark}"
 				/>
 
 				<aside
@@ -126,12 +127,29 @@ const mappedTasks = computed(() => {
 	return list
 })
 
+const cartoApiKey = computed(() => {
+	return (window as unknown as { CARTO_API_KEY?: string }).CARTO_API_KEY || ''
+})
+
+const isUsingOsmFallback = computed(() => {
+	return !cartoApiKey.value
+})
+
 const tileLayerUrl = computed(() => {
-	const key = (window as unknown as { CARTO_API_KEY?: string }).CARTO_API_KEY || ''
-	const query = key ? `?key=${encodeURIComponent(key)}` : ''
-	return isDark.value
-		? `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${query}`
-		: `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${query}`
+	if (cartoApiKey.value) {
+		const query = `?key=${encodeURIComponent(cartoApiKey.value)}`
+		return isDark.value
+			? `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${query}`
+			: `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${query}`
+	}
+	return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png'
+})
+
+const tileAttribution = computed(() => {
+	if (cartoApiKey.value) {
+		return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+	}
+	return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 })
 
 const customMarkerIcon = computed(() => {
@@ -188,7 +206,7 @@ function initMap() {
 
 	currentTileLayer = L.tileLayer(tileLayerUrl.value, {
 		maxZoom: 19,
-		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+		attribution: tileAttribution.value,
 	}).addTo(mapInstance)
 
 	markersLayer = L.layerGroup().addTo(mapInstance)
@@ -268,7 +286,7 @@ function tryInitAndRender() {
 	}
 }
 
-watch(tileLayerUrl, (newUrl) => {
+watch([tileLayerUrl, tileAttribution], ([newUrl]) => {
 	if (currentTileLayer) {
 		currentTileLayer.setUrl(newUrl)
 	}
@@ -365,6 +383,10 @@ onBeforeUnmount(() => {
 	block-size: 100%;
 	min-block-size: 550px;
 	z-index: 1;
+
+	&.dark-osm-tiles :deep(.leaflet-tile-pane) {
+		filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3) brightness(0.7);
+	}
 }
 
 .map-sidebar {
