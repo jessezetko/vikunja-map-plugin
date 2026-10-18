@@ -1,0 +1,2068 @@
+diff --git a/.gitignore b/.gitignore
+index 469ce5eb9..15c237a42 100644
+--- a/.gitignore
++++ b/.gitignore
+@@ -34,6 +34,7 @@ mage_output_file.go
+ mage-static
+ .DS_Store
+ /plugins/*
++!/plugins/maps
+ /plugins-dev/*
+ 
+ # pnpm
+diff --git a/frontend/package.json b/frontend/package.json
+index 3af3a2819..55a3563dc 100644
+--- a/frontend/package.json
++++ b/frontend/package.json
+@@ -90,6 +90,7 @@
+     "floating-vue": "5.4.0",
+     "is-touch-device": "1.0.1",
+     "klona": "2.0.6",
++    "leaflet": "^1.9.4",
+     "lowlight": "3.3.0",
+     "marked": "18.0.13",
+     "nanoid": "6.0.1",
+@@ -120,6 +121,7 @@
+     "@tsconfig/node24": "24.0.5",
+     "@types/codemirror": "5.60.18",
+     "@types/is-touch-device": "1.0.3",
++    "@types/leaflet": "^1.9.22",
+     "@types/node": "24.13.4",
+     "@types/sortablejs": "1.15.9",
+     "@types/ws": "8.18.1",
+diff --git a/frontend/pnpm-lock.yaml b/frontend/pnpm-lock.yaml
+index 93db59763..83bf92968 100644
+--- a/frontend/pnpm-lock.yaml
++++ b/frontend/pnpm-lock.yaml
+@@ -139,6 +139,9 @@ importers:
+       klona:
+         specifier: 2.0.6
+         version: 2.0.6
++      leaflet:
++        specifier: ^1.9.4
++        version: 1.9.4
+       lowlight:
+         specifier: 3.3.0
+         version: 3.3.0
+@@ -224,6 +227,9 @@ importers:
+       '@types/is-touch-device':
+         specifier: 1.0.3
+         version: 1.0.3
++      '@types/leaflet':
++        specifier: ^1.9.22
++        version: 1.9.22
+       '@types/node':
+         specifier: 24.13.4
+         version: 24.13.4
+@@ -2779,6 +2785,9 @@ packages:
+   '@types/gensync@1.0.5':
+     resolution: {integrity: sha512-MbsRCT7mTikHwKZ0X+LVUTLRrZZRLipTuXEO9qOYO+zmjMVk81axyClMROf6uoPD9MRVu46bx8zoR0Ad9q3NAg==}
+ 
++  '@types/geojson@7946.0.16':
++    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
++
+   '@types/hast@3.0.5':
+     resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
+ 
+@@ -2794,6 +2803,9 @@ packages:
+   '@types/jsonfile@6.1.4':
+     resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
+ 
++  '@types/leaflet@1.9.22':
++    resolution: {integrity: sha512-h3lhECYEKDasG7LFHu+GiHqAvsgLuQvlJvVZzJDGONo3sEL+wUOqSFLnwkZlK0qVxnxbuGFW8iBlJNYs5wgndA==}
++
+   '@types/linkify-it@5.0.0':
+     resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
+ 
+@@ -4840,6 +4852,9 @@ packages:
+   launch-editor@2.14.1:
+     resolution: {integrity: sha512-QWBrQsMpH7gPr965dsKD/3cKWiNoTjpATQf++Xq63N6sKRGMwlVXz41O1IZTMfZQgBctD/K5Zt06+/I6pP6+HA==}
+ 
++  leaflet@1.9.4:
++    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
++
+   leven@3.1.0:
+     resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
+     engines: {node: '>=6'}
+@@ -9712,6 +9727,8 @@ snapshots:
+ 
+   '@types/gensync@1.0.5': {}
+ 
++  '@types/geojson@7946.0.16': {}
++
+   '@types/hast@3.0.5':
+     dependencies:
+       '@types/unist': 3.0.3
+@@ -9726,6 +9743,10 @@ snapshots:
+     dependencies:
+       '@types/node': 24.13.4
+ 
++  '@types/leaflet@1.9.22':
++    dependencies:
++      '@types/geojson': 7946.0.16
++
+   '@types/linkify-it@5.0.0': {}
+ 
+   '@types/markdown-it@14.1.2':
+@@ -12062,6 +12083,8 @@ snapshots:
+       picocolors: 1.1.1
+       shell-quote: 1.12.0
+ 
++  leaflet@1.9.4: {}
++
+   leven@3.1.0: {}
+ 
+   levn@0.4.1:
+diff --git a/frontend/src/client/queries/maps.ts b/frontend/src/client/queries/maps.ts
+new file mode 100644
+index 000000000..17ae3a2eb
+--- /dev/null
++++ b/frontend/src/client/queries/maps.ts
+@@ -0,0 +1,126 @@
++import {getApiRootUrl} from '@/helpers/apiUrl'
++import {getToken} from '@/helpers/auth'
++
++export interface TaskLocation {
++	task_id: number
++	title?: string
++	address: string
++	latitude: number
++	longitude: number
++	created?: string
++	updated?: string
++}
++
++export interface GeocodeResult {
++	place_id?: string
++	display_name: string
++	address?: string
++	latitude?: number
++	longitude?: number
++	lat?: number
++	lon?: number
++	provider?: string
++	map_url?: string
++}
++
++function getAuthHeaders(): HeadersInit {
++	const headers: Record<string, string> = {
++		'Content-Type': 'application/json',
++	}
++	const token = getToken()
++	if (token) {
++		headers.Authorization = `Bearer ${token}`
++	}
++	return headers
++}
++
++export const mapsQueryKeys = {
++	all: ['maps'] as const,
++	task: (taskId: number) => ['maps', 'task', taskId] as const,
++	project: (projectId: number) => ['maps', 'project', projectId] as const,
++}
++
++export async function searchLocations(query: string, signal?: AbortSignal): Promise<GeocodeResult[]> {
++	if (!query.trim()) {
++		return []
++	}
++	const rootUrl = getApiRootUrl()
++	const url = `${rootUrl}/api/v1/plugins/maps/geocode?q=${encodeURIComponent(query)}`
++	const res = await fetch(url, {
++		headers: getAuthHeaders(),
++		credentials: 'include',
++		signal,
++	})
++	if (!res.ok) {
++		throw new Error(`Failed to search location: ${res.statusText}`)
++	}
++	return res.json()
++}
++
++export async function getTaskLocation(taskId: number): Promise<TaskLocation | null> {
++	const rootUrl = getApiRootUrl()
++	const url = `${rootUrl}/api/v1/plugins/maps/tasks/${taskId}/location`
++	const res = await fetch(url, {
++		headers: getAuthHeaders(),
++		credentials: 'include',
++	})
++	if (res.status === 404) {
++		return null
++	}
++	if (!res.ok) {
++		throw new Error(`Failed to fetch task location: ${res.statusText}`)
++	}
++	return res.json()
++}
++
++export async function saveTaskLocation(
++	taskId: number,
++	loc: { address: string; latitude: number; longitude: number; title?: string; display_name?: string },
++): Promise<TaskLocation> {
++	const rootUrl = getApiRootUrl()
++	const url = `${rootUrl}/api/v1/plugins/maps/tasks/${taskId}/location`
++	const displayName = loc.display_name || loc.title || loc.address
++	const payload = {
++		display_name: displayName,
++		title: loc.title || displayName,
++		address: loc.address || displayName,
++		latitude: loc.latitude,
++		longitude: loc.longitude,
++	}
++	const res = await fetch(url, {
++		method: 'POST',
++		headers: getAuthHeaders(),
++		credentials: 'include',
++		body: JSON.stringify(payload),
++	})
++	if (!res.ok) {
++		throw new Error(`Failed to save task location: ${res.statusText}`)
++	}
++	return res.json()
++}
++
++export async function deleteTaskLocation(taskId: number): Promise<void> {
++	const rootUrl = getApiRootUrl()
++	const url = `${rootUrl}/api/v1/plugins/maps/tasks/${taskId}/location`
++	const res = await fetch(url, {
++		method: 'DELETE',
++		headers: getAuthHeaders(),
++		credentials: 'include',
++	})
++	if (!res.ok && res.status !== 404) {
++		throw new Error(`Failed to delete task location: ${res.statusText}`)
++	}
++}
++
++export async function getProjectLocations(projectId: number): Promise<TaskLocation[]> {
++	const rootUrl = getApiRootUrl()
++	const url = `${rootUrl}/api/v1/plugins/maps/projects/${projectId}/locations`
++	const res = await fetch(url, {
++		headers: getAuthHeaders(),
++		credentials: 'include',
++	})
++	if (!res.ok) {
++		throw new Error(`Failed to fetch project locations: ${res.statusText}`)
++	}
++	return res.json()
++}
+diff --git a/frontend/src/components/misc/Icon.ts b/frontend/src/components/misc/Icon.ts
+index 35f2923bb..a1810d4cd 100644
+--- a/frontend/src/components/misc/Icon.ts
++++ b/frontend/src/components/misc/Icon.ts
+@@ -51,6 +51,8 @@ import {
+ 	faList,
+ 	faListOl,
+ 	faLock,
++	faMap,
++	faMapMarkerAlt,
+ 	faMinus,
+ 	faPaperclip,
+ 	faPaste,
+@@ -223,6 +225,8 @@ library.add(faCalendarCheck)
+ library.add(faFaceLaugh)
+ library.add(faExclamation)
+ library.add(faArrowUpRightFromSquare)
++library.add(faMap)
++library.add(faMapMarkerAlt)
+ 
+ // overwriting the wrong types
+ export default FontAwesomeIcon as unknown as FontAwesomeIconFixedTypes
+diff --git a/frontend/src/components/project/ProjectWrapper.vue b/frontend/src/components/project/ProjectWrapper.vue
+index c290f769d..d54bc92fa 100644
+--- a/frontend/src/components/project/ProjectWrapper.vue
++++ b/frontend/src/components/project/ProjectWrapper.vue
+@@ -162,6 +162,8 @@ function getViewTitle(view: ProjectView) {
+ 			return t('project.table.title')
+ 		case 'Kanban':
+ 			return t('project.kanban.title')
++		case 'Map':
++			return t('project.map.title')
+ 	}
+ 
+ 	return view.title ?? ''
+diff --git a/frontend/src/components/project/views/ProjectViewMap.vue b/frontend/src/components/project/views/ProjectViewMap.vue
+new file mode 100644
+index 000000000..10ca7e049
+--- /dev/null
++++ b/frontend/src/components/project/views/ProjectViewMap.vue
+@@ -0,0 +1,510 @@
++<template>
++	<ProjectWrapper
++		class="project-map-view-wrapper"
++		:is-loading-project="isLoadingProject"
++		:project-id="projectId"
++		:view-id="viewId"
++	>
++		<template
++			v-if="!isLoadingLocations && mappedTasks.length > 0"
++			#header
++		>
++			<div class="map-toolbar">
++				<BaseButton
++					size="small"
++					variant="secondary"
++					@click="fitAllMarkers"
++				>
++					<Icon
++						icon="map-marker-alt"
++						class="mie-1"
++					/>
++					{{ $t('project.map.fitAll') }}
++				</BaseButton>
++			</div>
++		</template>
++
++		<div class="project-map-view">
++			<div class="map-layout">
++				<div
++					ref="mapContainer"
++					class="leaflet-map-canvas"
++				/>
++
++				<aside
++					v-if="!isLoadingLocations && mappedTasks.length > 0"
++					class="map-sidebar"
++				>
++					<h4 class="sidebar-heading">
++						<Icon
++							icon="map-marker-alt"
++							class="mie-1"
++						/>
++						{{ $t('task.location.title') }} ({{ mappedTasks.length }})
++					</h4>
++					<ul class="pinned-locations-list">
++						<li
++							v-for="item in mappedTasks"
++							:key="item.task.id"
++							class="pinned-location-item"
++							@click="focusTaskPin(item.task.id)"
++						>
++							<div class="pinned-task-title">
++								{{ item.task.title }}
++							</div>
++							<div class="pinned-task-address">
++								{{ item.location.address || item.location.title }}
++							</div>
++						</li>
++					</ul>
++				</aside>
++
++				<!-- Empty hint shown ONLY after loading finishes and no locations exist -->
++				<div
++					v-else-if="!isLoadingLocations && mappedTasks.length === 0"
++					class="empty-map-container"
++				>
++					<div class="empty-map-hint">
++						<Icon
++							icon="map"
++							class="empty-map-icon mie-3"
++						/>
++						<span class="empty-map-text">{{ $t('project.map.noLocations') }}</span>
++					</div>
++				</div>
++			</div>
++		</div>
++	</ProjectWrapper>
++</template>
++
++<script setup lang="ts">
++import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
++import {useResizeObserver} from '@vueuse/core'
++import {useRouter} from 'vue-router'
++import L from 'leaflet'
++import 'leaflet/dist/leaflet.css'
++
++import BaseButton from '@/components/base/BaseButton.vue'
++import Icon from '@/components/misc/Icon'
++import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
++import {getProjectLocations, type TaskLocation} from '@/client/queries/maps'
++import {useTaskList} from '@/composables/useTaskList'
++import {useColorScheme} from '@/composables/useColorScheme'
++
++const props = withDefaults(defineProps<{
++	projectId: number
++	viewId: number
++	isLoadingProject?: boolean
++}>(), {
++	isLoadingProject: false,
++})
++
++const router = useRouter()
++const {isDark} = useColorScheme()
++
++const mapContainer = ref<HTMLElement | null>(null)
++const locationsByTaskId = ref<Map<number, TaskLocation>>(new Map())
++const isLoadingLocations = ref(true)
++
++let mapInstance: L.Map | null = null
++let currentTileLayer: L.TileLayer | null = null
++let markersLayer: L.LayerGroup | null = null
++const markerByTaskId = new Map<number, L.Marker>()
++
++const {tasks} = useTaskList(
++	() => props.projectId,
++	() => props.viewId,
++)
++
++const mappedTasks = computed(() => {
++	const list: Array<{task: (typeof tasks.value)[0]; location: TaskLocation}> = []
++	for (const t of tasks.value) {
++		if (t.id && locationsByTaskId.value.has(t.id)) {
++			list.push({task: t, location: locationsByTaskId.value.get(t.id)!})
++		}
++	}
++	return list
++})
++
++const tileLayerUrl = computed(() => {
++	const key = (window as unknown as { CARTO_API_KEY?: string }).CARTO_API_KEY || ''
++	const query = key ? `?key=${encodeURIComponent(key)}` : ''
++	return isDark.value
++		? `https://basemaps.cartocdn.com/dark_all/{z}/{x}/{y}.png${query}`
++		: `https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png${query}`
++})
++
++const customMarkerIcon = computed(() => {
++	const primaryColor = isDark.value ? '#3a86ff' : '#1976d2'
++	return L.divIcon({
++		className: 'custom-map-pin',
++		html: `<div style="
++			background-color: ${primaryColor};
++			width: 30px;
++			height: 30px;
++			border-radius: 50% 50% 50% 0;
++			transform: rotate(-45deg);
++			display: flex;
++			align-items: center;
++			justify-content: center;
++			box-shadow: 0 4px 10px rgba(0,0,0,0.35);
++			border: 2px solid #ffffff;
++		"><div style="
++			width: 10px;
++			height: 10px;
++			background-color: #ffffff;
++			border-radius: 50%;
++			transform: rotate(45deg);
++		"></div></div>`,
++		iconSize: [30, 30],
++		iconAnchor: [15, 30],
++		popupAnchor: [0, -30],
++	})
++})
++
++async function fetchLocations() {
++	if (!props.projectId) return
++	try {
++		isLoadingLocations.value = true
++		const list = await getProjectLocations(props.projectId)
++		const map = new Map<number, TaskLocation>()
++		for (const loc of list) {
++			map.set(loc.task_id, loc)
++		}
++		locationsByTaskId.value = map
++		renderMarkers()
++	} catch {
++		// Ignore error
++	} finally {
++		isLoadingLocations.value = false
++	}
++}
++
++function initMap() {
++	if (!mapContainer.value || mapInstance) return
++	mapInstance = L.map(mapContainer.value, {
++		zoomControl: true,
++	}).setView([20, 0], 2)
++
++	currentTileLayer = L.tileLayer(tileLayerUrl.value, {
++		maxZoom: 19,
++		attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
++	}).addTo(mapInstance)
++
++	markersLayer = L.layerGroup().addTo(mapInstance)
++}
++
++function renderMarkers() {
++	if (!mapInstance || !markersLayer) return
++	markersLayer.clearLayers()
++	markerByTaskId.clear()
++
++	const latLngs: L.LatLngExpression[] = []
++
++	for (const {task, location} of mappedTasks.value) {
++		const coords: L.LatLngExpression = [location.latitude, location.longitude]
++		latLngs.push(coords)
++
++		const popupEl = document.createElement('div')
++		popupEl.className = 'map-marker-popup'
++
++		const titleEl = document.createElement('div')
++		titleEl.className = 'marker-popup-title'
++		titleEl.textContent = task.title
++		popupEl.appendChild(titleEl)
++
++		if (location.address || location.title) {
++			const placeEl = document.createElement('div')
++			placeEl.className = 'marker-popup-address'
++			placeEl.textContent = location.address || location.title || ''
++			popupEl.appendChild(placeEl)
++		}
++
++		const openBtn = document.createElement('button')
++		openBtn.type = 'button'
++		openBtn.className = 'button is-small is-primary is-fullwidth'
++		openBtn.style.marginTop = '10px'
++		openBtn.textContent = 'Open Work Item'
++		openBtn.addEventListener('click', () => {
++			router.push({
++				name: 'task.detail',
++				params: {id: task.id},
++			})
++		})
++		popupEl.appendChild(openBtn)
++
++		const marker = L.marker(coords, {icon: customMarkerIcon.value}).bindPopup(popupEl)
++		marker.addTo(markersLayer)
++		if (task.id) {
++			markerByTaskId.set(task.id, marker)
++		}
++	}
++
++	if (latLngs.length > 0) {
++		mapInstance.fitBounds(L.latLngBounds(latLngs), {padding: [50, 50], maxZoom: 15})
++	}
++}
++
++function fitAllMarkers() {
++	if (!mapInstance || mappedTasks.value.length === 0) return
++	const coords = mappedTasks.value.map(m => [m.location.latitude, m.location.longitude] as L.LatLngTuple)
++	mapInstance.fitBounds(L.latLngBounds(coords), {padding: [50, 50], maxZoom: 15})
++}
++
++function focusTaskPin(taskId: number) {
++	const marker = markerByTaskId.get(taskId)
++	if (!marker || !mapInstance) return
++	mapInstance.setView(marker.getLatLng(), 16, {animate: true})
++	marker.openPopup()
++}
++
++function tryInitAndRender() {
++	if (mapContainer.value && !mapInstance) {
++		initMap()
++	}
++	if (mapInstance) {
++		mapInstance.invalidateSize()
++		renderMarkers()
++	}
++}
++
++watch(tileLayerUrl, (newUrl) => {
++	if (currentTileLayer) {
++		currentTileLayer.setUrl(newUrl)
++	}
++	renderMarkers()
++})
++
++watch(() => [props.projectId, tasks.value], () => {
++	fetchLocations()
++}, {deep: true})
++
++watch(mappedTasks, () => {
++	renderMarkers()
++	if (mapInstance) {
++		nextTick(() => {
++			mapInstance?.invalidateSize()
++		})
++	}
++})
++
++watch(mapContainer, (el) => {
++	if (el) {
++		nextTick(() => {
++			tryInitAndRender()
++		})
++	}
++})
++
++watch(() => props.isLoadingProject, (loading) => {
++	if (!loading) {
++		nextTick(() => {
++			tryInitAndRender()
++		})
++	}
++})
++
++useResizeObserver(mapContainer, () => {
++	mapInstance?.invalidateSize()
++})
++
++onMounted(async () => {
++	await nextTick()
++	tryInitAndRender()
++	await fetchLocations()
++	await nextTick()
++	tryInitAndRender()
++})
++
++onBeforeUnmount(() => {
++	if (mapInstance) {
++		mapInstance.remove()
++		mapInstance = null
++		currentTileLayer = null
++		markersLayer = null
++	}
++})
++</script>
++
++<style scoped lang="scss">
++.project-map-view-wrapper {
++	block-size: 100%;
++	display: flex;
++	flex-direction: column;
++	flex: 1;
++}
++
++.map-toolbar {
++	display: flex;
++	align-items: center;
++}
++
++.project-map-view {
++	flex: 1;
++	inline-size: 100%;
++	block-size: calc(100vh - 170px);
++	min-block-size: 550px;
++	border-radius: $radius;
++	overflow: hidden;
++	border: 1px solid var(--border);
++	background: var(--scheme-main);
++	position: relative;
++	display: flex;
++}
++
++.map-layout {
++	display: flex;
++	inline-size: 100%;
++	block-size: 100%;
++	position: relative;
++}
++
++.leaflet-map-canvas {
++	flex: 1;
++	inline-size: 100%;
++	block-size: 100%;
++	min-block-size: 550px;
++	z-index: 1;
++}
++
++.map-sidebar {
++	inline-size: 320px;
++	background: var(--scheme-main);
++	border-inline-start: 1px solid var(--border);
++	overflow-y: auto;
++	padding: 1.25rem 1rem;
++	z-index: 10;
++	display: flex;
++	flex-direction: column;
++	box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
++
++	:global(.dark) & {
++		box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
++	}
++}
++
++.sidebar-heading {
++	font-size: 0.95rem;
++	font-weight: 600;
++	color: var(--text-strong);
++	margin-block-end: 1rem;
++	display: flex;
++	align-items: center;
++}
++
++.pinned-locations-list {
++	list-style: none;
++	margin: 0;
++	padding: 0;
++	display: flex;
++	flex-direction: column;
++	gap: 0.6rem;
++}
++
++.pinned-location-item {
++	padding: 0.75rem 0.85rem;
++	border-radius: $radius;
++	border: 1px solid var(--border);
++	background: var(--grey-100);
++	cursor: pointer;
++	transition: background $transition, border-color $transition, transform 0.15s ease;
++
++	&:hover {
++		background: var(--grey-200);
++		border-color: var(--primary);
++		transform: translateY(-1px);
++	}
++}
++
++.pinned-task-title {
++	font-weight: 600;
++	font-size: 0.875rem;
++	color: var(--text-strong);
++}
++
++.pinned-task-address {
++	font-size: 0.75rem;
++	color: var(--text-light);
++	margin-block-start: 0.25rem;
++	white-space: nowrap;
++	overflow: hidden;
++	text-overflow: ellipsis;
++}
++
++.empty-map-container {
++	position: absolute;
++	inset-block-start: 2.5rem;
++	inset-inline: 0;
++	display: flex;
++	justify-content: center;
++	align-items: center;
++	z-index: 1000;
++	pointer-events: none;
++}
++
++.empty-map-hint {
++	pointer-events: auto;
++	display: inline-flex;
++	align-items: center;
++	background-color: hsl(204, 85%, 96%);
++	border: 1.5px solid hsl(204, 75%, 60%);
++	padding: 0.85rem 1.75rem;
++	border-radius: var(--border-radius, 8px);
++	box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
++	color: hsl(204, 85%, 22%);
++	font-weight: 600;
++	font-size: 0.95rem;
++
++	:global(.dark) & {
++		background-color: hsl(215, 30%, 18%);
++		border-color: hsl(215, 70%, 55%);
++		color: hsl(210, 20%, 98%);
++		box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45);
++	}
++}
++
++.empty-map-icon {
++	color: hsl(204, 85%, 45%);
++	flex-shrink: 0;
++
++	:global(.dark) & {
++		color: hsl(215, 80%, 65%);
++	}
++}
++
++:deep(.leaflet-popup-content-wrapper) {
++	background: var(--scheme-main);
++	color: var(--text);
++	border-radius: $radius;
++	box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
++	border: 1px solid var(--border);
++	padding: 0;
++}
++
++:deep(.leaflet-popup-tip) {
++	background: var(--scheme-main);
++}
++
++:deep(.leaflet-popup-content) {
++	margin: 0.85rem 1rem;
++	line-height: 1.4;
++	color: var(--text);
++
++	.marker-popup-title {
++		font-weight: 700;
++		font-size: 0.95rem;
++		color: var(--text-strong);
++	}
++
++	.marker-popup-address {
++		font-size: 0.78rem;
++		color: var(--text-light);
++		margin-block-start: 0.25rem;
++	}
++}
++
++:deep(.leaflet-container) {
++	font-family: inherit;
++	background: var(--scheme-main);
++}
++</style>
+diff --git a/frontend/src/components/project/views/ViewEditForm.vue b/frontend/src/components/project/views/ViewEditForm.vue
+index 529c9b6a1..3b689a058 100644
+--- a/frontend/src/components/project/views/ViewEditForm.vue
++++ b/frontend/src/components/project/views/ViewEditForm.vue
+@@ -236,6 +236,9 @@ function handleBubbleSave(event: FocusEvent) {
+ 						<option value="kanban">
+ 							{{ $t('project.kanban.title') }}
+ 						</option>
++						<option value="map">
++							{{ $t('project.map.title') }}
++						</option>
+ 					</select>
+ 				</div>
+ 			</template>
+diff --git a/frontend/src/components/tasks/partials/LocationSearchField.vue b/frontend/src/components/tasks/partials/LocationSearchField.vue
+new file mode 100644
+index 000000000..1bd59dd21
+--- /dev/null
++++ b/frontend/src/components/tasks/partials/LocationSearchField.vue
+@@ -0,0 +1,395 @@
++<template>
++	<div class="task-location-field">
++		<!-- Saved Location: Compact tag matching other Vikunja tags/labels -->
++		<div
++			v-if="savedLocation && !isEditing"
++			class="location-tag-container"
++		>
++			<span
++				class="tag location-tag"
++				:class="{'is-clickable': !disabled}"
++				:title="savedLocation.address || savedLocation.title"
++				@click="startEditing"
++			>
++				<span class="location-tag-icon">
++					<Icon icon="map-marker-alt" />
++				</span>
++				<span class="location-tag-text">
++					{{ savedLocation.title || savedLocation.address }}
++				</span>
++				<a
++					v-if="mapUrl"
++					:href="mapUrl"
++					target="_blank"
++					rel="noopener noreferrer"
++					class="location-map-link"
++					:title="$t('task.location.viewOnMap')"
++					@click.stop
++				>
++					<Icon icon="external-link-alt" />
++				</a>
++				<BaseButton
++					v-if="!disabled"
++					class="delete is-small"
++					:aria-label="$t('task.location.remove')"
++					@click.stop="clearLocation"
++				/>
++			</span>
++		</div>
++
++		<!-- Location Autocomplete Search Field -->
++		<div
++			v-else
++			class="location-autocomplete"
++		>
++			<div
++				class="control has-icons-left"
++				:class="{'is-loading': isSearching}"
++			>
++				<input
++					ref="inputRef"
++					v-model="searchQuery"
++					type="text"
++					class="input is-small"
++					:disabled="disabled"
++					:placeholder="$t('task.location.searchPlaceholder')"
++					autocomplete="off"
++					@input="onSearchInput"
++					@keydown.esc="cancelEditing"
++					@focus="onSearchInput"
++					@blur="onBlur"
++				>
++				<span class="icon is-small is-left">
++					<Icon icon="map-marker-alt" />
++				</span>
++			</div>
++
++			<ul
++				v-if="showDropdown && suggestions.length > 0"
++				class="location-suggestions-menu"
++				role="listbox"
++			>
++				<li
++					v-for="(item, idx) in suggestions"
++					:key="item.place_id || idx"
++					class="location-suggestion-item"
++					role="option"
++					@mousedown.prevent="selectSuggestion(item)"
++				>
++					<div class="suggestion-title">
++						{{ item.display_name }}
++					</div>
++					<div
++						v-if="item.address && item.address !== item.display_name"
++						class="suggestion-address"
++					>
++						{{ item.address }}
++					</div>
++				</li>
++			</ul>
++			<div
++				v-else-if="showDropdown && isSearching"
++				class="location-searching-hint"
++			>
++				{{ $t('task.location.searching') }}
++			</div>
++			<div
++				v-else-if="showDropdown && searchQuery.trim().length >= 2 && suggestions.length === 0"
++				class="location-searching-hint"
++			>
++				{{ $t('task.location.noResults') }}
++			</div>
++		</div>
++	</div>
++</template>
++
++<script setup lang="ts">
++import {computed, nextTick, onMounted, ref, watch} from 'vue'
++import {useI18n} from 'vue-i18n'
++
++import BaseButton from '@/components/base/BaseButton.vue'
++import Icon from '@/components/misc/Icon'
++import {
++	deleteTaskLocation,
++	getTaskLocation,
++	saveTaskLocation,
++	searchLocations,
++	type GeocodeResult,
++	type TaskLocation,
++} from '@/client/queries/maps'
++import {success} from '@/message'
++
++const props = withDefaults(defineProps<{
++	taskId: number
++	disabled?: boolean
++}>(), {
++	disabled: false,
++})
++
++const emit = defineEmits<{
++	'updated': [location: TaskLocation | null]
++	'cleared': []
++}>()
++
++const {t} = useI18n()
++
++const savedLocation = ref<TaskLocation | null>(null)
++const searchQuery = ref('')
++const suggestions = ref<GeocodeResult[]>([])
++const isSearching = ref(false)
++const showDropdown = ref(false)
++const isEditing = ref(false)
++const inputRef = ref<HTMLInputElement | null>(null)
++
++let debounceTimer: ReturnType<typeof setTimeout> | null = null
++
++const mapUrl = computed(() => {
++	if (!savedLocation.value) return ''
++	const {latitude, longitude} = savedLocation.value
++	return `https://www.openstreetmap.org/?mlat=${latitude}&mlon=${longitude}#map=16/${latitude}/${longitude}`
++})
++
++async function loadLocation() {
++	if (!props.taskId) return
++	try {
++		savedLocation.value = await getTaskLocation(props.taskId)
++	} catch {
++		savedLocation.value = null
++	}
++	emit('updated', savedLocation.value)
++}
++
++function onSearchInput() {
++	if (debounceTimer) clearTimeout(debounceTimer)
++	const q = searchQuery.value.trim()
++	if (q.length < 2) {
++		suggestions.value = []
++		showDropdown.value = false
++		return
++	}
++	isSearching.value = true
++	showDropdown.value = true
++	debounceTimer = setTimeout(async () => {
++		try {
++			suggestions.value = await searchLocations(q)
++		} catch {
++			suggestions.value = []
++		} finally {
++			isSearching.value = false
++		}
++	}, 350)
++}
++
++async function selectSuggestion(item: GeocodeResult) {
++	try {
++		const lat = typeof item.lat === 'number' ? item.lat : (item.latitude ?? 0)
++		const lon = typeof item.lon === 'number' ? item.lon : (item.longitude ?? 0)
++		const address = item.address || item.display_name
++		const displayName = item.display_name || address
++		const title = item.display_name && item.display_name !== address ? item.display_name : displayName
++		const saved = await saveTaskLocation(props.taskId, {
++			display_name: displayName,
++			title,
++			address,
++			latitude: lat,
++			longitude: lon,
++		})
++		savedLocation.value = saved
++		suggestions.value = []
++		searchQuery.value = ''
++		showDropdown.value = false
++		isEditing.value = false
++		emit('updated', saved)
++		success(t('task.location.saved'))
++	} catch {
++		// Ignore or handle error
++	}
++}
++
++async function clearLocation() {
++	try {
++		await deleteTaskLocation(props.taskId)
++		savedLocation.value = null
++		isEditing.value = false
++		emit('updated', null)
++		emit('cleared')
++		success(t('task.location.removed'))
++	} catch {
++		// Ignore
++	}
++}
++
++function startEditing() {
++	if (props.disabled) return
++	searchQuery.value = savedLocation.value?.address ?? ''
++	isEditing.value = true
++	nextTick(() => {
++		inputRef.value?.focus()
++	})
++}
++
++function cancelEditing() {
++	isEditing.value = false
++	showDropdown.value = false
++	suggestions.value = []
++}
++
++function onBlur() {
++	setTimeout(() => {
++		showDropdown.value = false
++		if (savedLocation.value) {
++			isEditing.value = false
++		}
++	}, 200)
++}
++
++function focus() {
++	isEditing.value = true
++	nextTick(() => {
++		inputRef.value?.focus()
++	})
++}
++
++defineExpose({
++	focus,
++})
++
++watch(() => props.taskId, () => {
++	loadLocation()
++})
++
++onMounted(() => {
++	loadLocation()
++})
++</script>
++
++<style scoped lang="scss">
++.task-location-field {
++	display: flex;
++	align-items: center;
++	inline-size: 100%;
++}
++
++.location-tag-container {
++	display: inline-flex;
++	max-inline-size: 100%;
++}
++
++.location-tag {
++	display: inline-flex;
++	align-items: center;
++	max-inline-size: 100%;
++	background: var(--grey-200);
++	color: var(--text);
++	border-radius: $radius;
++	padding: 0.25rem 0.5rem;
++	font-size: 0.825rem;
++	gap: 0.35rem;
++
++	&.is-clickable {
++		cursor: pointer;
++
++		&:hover {
++			background: var(--grey-300);
++		}
++	}
++
++	.location-tag-icon {
++		display: inline-flex;
++		align-items: center;
++		color: var(--primary);
++		flex-shrink: 0;
++	}
++
++	.location-tag-text {
++		overflow: hidden;
++		text-overflow: ellipsis;
++		white-space: nowrap;
++		font-weight: 500;
++	}
++
++	.location-map-link {
++		color: var(--text-light, var(--grey-500));
++		display: inline-flex;
++		align-items: center;
++		font-size: 0.75rem;
++		margin-inline-start: 0.15rem;
++
++		&:hover {
++			color: var(--primary);
++		}
++	}
++}
++
++.location-autocomplete {
++	position: relative;
++	inline-size: 100%;
++}
++
++.location-suggestions-menu {
++	position: absolute;
++	inset-block-start: calc(100% + 4px);
++	inset-inline-start: 0;
++	min-inline-size: 260px;
++	max-inline-size: 340px;
++	z-index: 100;
++	max-block-size: 220px;
++	overflow-y: auto;
++	background: var(--scheme-main);
++	border: 1px solid var(--border);
++	border-radius: $radius;
++	box-shadow: var(--shadow-md, 0 4px 14px rgba(0, 0, 0, 0.15));
++	list-style: none;
++	margin: 0;
++	padding: 0.35rem 0;
++}
++
++.location-suggestion-item {
++	padding: 0.5rem 0.75rem;
++	cursor: pointer;
++	text-align: start;
++	border-block-end: 1px solid var(--border-light, var(--border));
++
++	&:last-child {
++		border-block-end: none;
++	}
++
++	&:hover,
++	&:focus {
++		background: var(--grey-100);
++	}
++}
++
++.suggestion-title {
++	font-size: 0.825rem;
++	font-weight: 600;
++	color: var(--text-strong, var(--text));
++	white-space: nowrap;
++	overflow: hidden;
++	text-overflow: ellipsis;
++}
++
++.suggestion-address {
++	font-size: 0.72rem;
++	color: var(--text-light, var(--grey-500));
++	white-space: nowrap;
++	overflow: hidden;
++	text-overflow: ellipsis;
++	margin-block-start: 0.15rem;
++}
++
++.location-searching-hint {
++	position: absolute;
++	inset-block-start: calc(100% + 4px);
++	inset-inline-start: 0;
++	min-inline-size: 200px;
++	z-index: 100;
++	padding: 0.5rem 0.75rem;
++	background: var(--scheme-main);
++	border: 1px solid var(--border);
++	border-radius: $radius;
++	font-size: 0.8rem;
++	color: var(--text-light, var(--grey-500));
++	box-shadow: var(--shadow-md, 0 4px 14px rgba(0, 0, 0, 0.15));
++}
++</style>
+diff --git a/frontend/src/constants/projectView.ts b/frontend/src/constants/projectView.ts
+index 3ac101720..915d716e5 100644
+--- a/frontend/src/constants/projectView.ts
++++ b/frontend/src/constants/projectView.ts
+@@ -1,12 +1,13 @@
+ import type {ProjectView} from '@/client/generated'
+ 
+-export type ProjectViewKind = NonNullable<ProjectView['view_kind']>
++export type ProjectViewKind = NonNullable<ProjectView['view_kind']> | 'map'
+ 
+ export const PROJECT_VIEW_KINDS = {
+ 	LIST: 'list',
+ 	GANTT: 'gantt',
+ 	TABLE: 'table',
+ 	KANBAN: 'kanban',
++	MAP: 'map',
+ } as const satisfies Record<string, ProjectViewKind>
+ 
+ export const DEFAULT_PROJECT_VIEW_SETTINGS = {
+diff --git a/frontend/src/i18n/lang/en.json b/frontend/src/i18n/lang/en.json
+index 272c28b0c..a656c8b32 100644
+--- a/frontend/src/i18n/lang/en.json
++++ b/frontend/src/i18n/lang/en.json
+@@ -611,6 +611,12 @@
+       "bucketLimitReached": "You have reached the bucket limit. Remove tasks or increase the limit to add new tasks.",
+       "bucketOptions": "Bucket options"
+     },
++    "map": {
++      "title": "Map",
++      "noLocations": "No tasks in this project have locations yet.",
++      "fitAll": "Fit all pins",
++      "loading": "Loading map locations…"
++    },
+     "pseudo": {
+       "favorites": {
+         "title": "Favorites"
+@@ -1085,6 +1091,16 @@
+     }
+   },
+   "task": {
++    "location": {
++      "title": "Location",
++      "searchPlaceholder": "Search for an address or place…",
++      "noResults": "No locations found",
++      "searching": "Searching locations…",
++      "remove": "Remove location",
++      "viewOnMap": "View on OpenStreetMap",
++      "saved": "Location saved successfully",
++      "removed": "Location removed"
++    },
+     "new": "Create a task",
+     "createSuccess": "The task was successfully created.",
+     "bulkCreateUnexpectedResponse": "The server returned an unexpected number of created tasks.",
+@@ -1161,6 +1177,7 @@
+         "moveProject": "Move",
+         "duplicate": "Duplicate",
+         "color": "Set Color",
++        "location": "Set Location",
+         "delete": "Delete",
+         "favorite": "Add to Favorites",
+         "unfavorite": "Remove from Favorites"
+@@ -1169,6 +1186,7 @@
+     "attributes": {
+       "assignees": "Assignees",
+       "color": "Color",
++      "location": "Location",
+       "created": "Created",
+       "createdBy": "Created By",
+       "description": "Description",
+diff --git a/frontend/src/views/project/ProjectView.vue b/frontend/src/views/project/ProjectView.vue
+index c5235797d..cc876fe2d 100644
+--- a/frontend/src/views/project/ProjectView.vue
++++ b/frontend/src/views/project/ProjectView.vue
+@@ -13,8 +13,9 @@ import ProjectList from '@/components/project/views/ProjectList.vue'
+ import ProjectGantt from '@/components/project/views/ProjectGantt.vue'
+ import ProjectTable from '@/components/project/views/ProjectTable.vue'
+ import ProjectKanban from '@/components/project/views/ProjectKanban.vue'
++import ProjectViewMap from '@/components/project/views/ProjectViewMap.vue'
+ 
+-import {DEFAULT_PROJECT_VIEW_SETTINGS} from '@/constants/projectView'
++import {DEFAULT_PROJECT_VIEW_SETTINGS, PROJECT_VIEW_KINDS, type ProjectViewKind} from '@/constants/projectView'
+ import {saveProjectToHistory} from '@/modules/projectHistory'
+ 
+ const props = defineProps<{
+@@ -128,4 +129,10 @@ watchEffect(() => baseStore.setCurrentProjectViewId(props.viewId))
+ 		:is-loading-project="isLoadingProject"
+ 		:view-id
+ 	/>
++	<ProjectViewMap
++		v-if="(currentView?.view_kind as ProjectViewKind) === PROJECT_VIEW_KINDS.MAP"
++		:project-id="projectId"
++		:is-loading-project="isLoadingProject"
++		:view-id
++	/>
+ </template>
+diff --git a/frontend/src/views/tasks/TaskDetailView.vue b/frontend/src/views/tasks/TaskDetailView.vue
+index dab1144ec..1ff2c2fa5 100644
+--- a/frontend/src/views/tasks/TaskDetailView.vue
++++ b/frontend/src/views/tasks/TaskDetailView.vue
+@@ -316,6 +316,27 @@
+ 								/>
+ 							</div>
+ 						</CustomTransition>
++						<CustomTransition
++							name="flash-background"
++							appear
++						>
++							<div
++								v-if="activeFields.location"
++								class="column"
++							>
++								<!-- Location -->
++								<div class="detail-title">
++									<Icon icon="map-marker-alt" />
++									{{ $t('task.location.title') }}
++								</div>
++								<LocationSearchField
++									:ref="e => setFieldRef('location', e)"
++									:task-id="taskId"
++									:disabled="!canWrite"
++									@cleared="activeFields.location = false"
++								/>
++							</div>
++						</CustomTransition>
+ 					</div>
+ 
+ 					<!-- Labels -->
+@@ -501,6 +522,13 @@
+ 						>
+ 							{{ $t('task.detail.actions.color') }}
+ 						</XButton>
++						<XButton
++							variant="secondary"
++							icon="map-marker-alt"
++							@click="setFieldActive('location')"
++						>
++							{{ $t('task.detail.actions.location') }}
++						</XButton>
+ 						
+ 						<span class="action-heading">{{ $t('task.detail.management') }}</span>
+ 
+@@ -681,6 +709,8 @@ import Description from '@/components/tasks/partials/Description.vue'
+ import EditAssignees from '@/components/tasks/partials/EditAssignees.vue'
+ import EditLabels from '@/components/tasks/partials/EditLabels.vue'
+ import Heading from '@/components/tasks/partials/Heading.vue'
++import LocationSearchField from '@/components/tasks/partials/LocationSearchField.vue'
++import {getTaskLocation} from '@/client/queries/maps'
+ import ProjectSearch from '@/components/tasks/partials/ProjectSearch.vue'
+ import PercentDoneSelect from '@/components/tasks/partials/PercentDoneSelect.vue'
+ import PrioritySelect from '@/components/tasks/partials/PrioritySelect.vue'
+@@ -982,6 +1012,7 @@ type FieldType =
+ 	| 'dueDate'
+ 	| 'endDate'
+ 	| 'labels'
++	| 'location'
+ 	| 'moveProject'
+ 	| 'percentDone'
+ 	| 'priority'
+@@ -998,6 +1029,7 @@ const activeFields: { [type in FieldType]: boolean } = reactive({
+ 	dueDate: false,
+ 	endDate: false,
+ 	labels: false,
++	location: false,
+ 	moveProject: false,
+ 	percentDone: false,
+ 	priority: false,
+@@ -1023,6 +1055,13 @@ function setActiveFields() {
+ 	activeFields.repeatAfter = (task.value.repeat_after ?? 0) > 0
+ 		|| task.value.repeat_mode !== TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
+ 	activeFields.startDate = Boolean(parseDateOrNull(task.value.start_date))
++	if (task.value.id) {
++		getTaskLocation(task.value.id).then((loc) => {
++			if (loc) {
++				activeFields.location = true
++			}
++		}).catch(() => {})
++	}
+ }
+ 
+ watch(taskQuery.task, async (loaded, previous) => {
+@@ -1061,6 +1100,7 @@ const activeFieldElements: { [id in FieldType]: HTMLElement | null } = reactive(
+ 	dueDate: null,
+ 	endDate: null,
+ 	labels: null,
++	location: null,
+ 	moveProject: null,
+ 	percentDone: null,
+ 	priority: null,
+diff --git a/pkg/models/project_view.go b/pkg/models/project_view.go
+index 5134e0e65..3091dca92 100644
+--- a/pkg/models/project_view.go
++++ b/pkg/models/project_view.go
+@@ -44,6 +44,8 @@ func (p *ProjectViewKind) MarshalJSON() ([]byte, error) {
+ 		return []byte(`"table"`), nil
+ 	case ProjectViewKindKanban:
+ 		return []byte(`"kanban"`), nil
++	case ProjectViewKindMap:
++		return []byte(`"map"`), nil
+ 	}
+ 
+ 	return []byte(`null`), nil
+@@ -65,6 +67,8 @@ func (p *ProjectViewKind) UnmarshalJSON(bytes []byte) error {
+ 		*p = ProjectViewKindTable
+ 	case "kanban":
+ 		*p = ProjectViewKindKanban
++	case "map":
++		*p = ProjectViewKindMap
+ 	default:
+ 		return fmt.Errorf("unknown project view kind: %s", value)
+ 	}
+@@ -79,7 +83,7 @@ func (p *ProjectViewKind) UnmarshalJSON(bytes []byte) error {
+ func (*ProjectViewKind) Schema(_ huma.Registry) *huma.Schema {
+ 	return &huma.Schema{
+ 		Type: "string",
+-		Enum: []any{"list", "gantt", "table", "kanban"},
++		Enum: []any{"list", "gantt", "table", "kanban", "map"},
+ 	}
+ }
+ 
+@@ -92,6 +96,7 @@ const (
+ 	ProjectViewKindGantt
+ 	ProjectViewKindTable
+ 	ProjectViewKindKanban
++	ProjectViewKindMap
+ )
+ 
+ type BucketConfigurationModeKind int
+@@ -161,8 +166,8 @@ type ProjectView struct {
+ 	Title string `xorm:"varchar(255) not null" json:"title" valid:"required,runelength(1|250)" minLength:"1" maxLength:"250" doc:"The title of this view."`
+ 	// The project this view belongs to
+ 	ProjectID int64 `xorm:"not null index" json:"project_id" param:"project" readOnly:"true" doc:"The project this view belongs to. Taken from the URL path; ignored on write."`
+-	// The kind of this view. Can be `list`, `gantt`, `table` or `kanban`.
+-	ViewKind ProjectViewKind `xorm:"not null" json:"view_kind" swaggertype:"string" enums:"list,gantt,table,kanban" doc:"The kind of this view. One of list, gantt, table or kanban."`
++	// The kind of this view. Can be `list`, `gantt`, `table`, `kanban` or `map`.
++	ViewKind ProjectViewKind `xorm:"not null" json:"view_kind" swaggertype:"string" enums:"list,gantt,table,kanban,map" doc:"The kind of this view. One of list, gantt, table, kanban or map."`
+ 
+ 	// The filter query to match tasks by. Check out https://vikunja.io/docs/filters for a full explanation.
+ 	Filter *TaskCollection `xorm:"json null default null" query:"filter" json:"filter" doc:"The filter query used to match tasks shown in this view. See https://vikunja.io/docs/filters."`
+@@ -864,11 +869,23 @@ func CreateDefaultViewsForProject(s *xorm.Session, project *Project, a web.Auth,
+ 		return
+ 	}
+ 
++	mapView := &ProjectView{
++		ProjectID: project.ID,
++		Title:     "Map",
++		ViewKind:  ProjectViewKindMap,
++		Position:  500,
++	}
++	err = createProjectView(s, mapView, a, createBacklogBucket, true)
++	if err != nil {
++		return
++	}
++
+ 	project.Views = []*ProjectView{
+ 		list,
+ 		gantt,
+ 		table,
+ 		kanban,
++		mapView,
+ 	}
+ 
+ 	return
+diff --git a/pkg/plugins/yaegi/loader_test.go b/pkg/plugins/yaegi/loader_test.go
+index 964c6382f..d39caf13d 100644
+--- a/pkg/plugins/yaegi/loader_test.go
++++ b/pkg/plugins/yaegi/loader_test.go
+@@ -80,3 +80,46 @@ func TestExamplePluginIsExcludedFromModuleBuild(t *testing.T) {
+ 		t.Error("example plugin main.go is part of the module build, expected it to be excluded via //go:build ignore")
+ 	}
+ }
++
++func TestLoadMapsPlugin(t *testing.T) {
++	mapsPluginDir := "../../../plugins/maps"
++
++	mainGo := filepath.Join(mapsPluginDir, "main.go")
++	if _, err := os.Stat(mainGo); err != nil {
++		t.Fatalf("maps plugin source not found at %s: %v", mainGo, err)
++	}
++
++	match, err := build.Default.MatchFile(mapsPluginDir, "main.go")
++	if err != nil {
++		t.Fatalf("MatchFile failed: %v", err)
++	}
++	if match {
++		t.Error("maps plugin main.go is part of the module build, expected it to be excluded via //go:build ignore")
++	}
++
++	loaded, err := LoadPluginFull(mapsPluginDir)
++	if err != nil {
++		t.Fatalf("LoadPluginFull failed: %v", err)
++	}
++
++	if loaded.Plugin == nil {
++		t.Fatal("Plugin is nil")
++	}
++	if loaded.Plugin.Name() != "maps" {
++		t.Errorf("expected plugin name 'maps', got %q", loaded.Plugin.Name())
++	}
++	if loaded.Plugin.Version() != "1.0.0" {
++		t.Errorf("expected plugin version '1.0.0', got %q", loaded.Plugin.Version())
++	}
++
++	if loaded.AuthRouter == nil {
++		t.Fatal("AuthRouter is nil — NewAuthenticatedRouterPlugin not found or failed")
++	}
++	if loaded.Migration == nil {
++		t.Fatal("Migration is nil — NewMigrationPlugin not found or failed")
++	}
++	if len(loaded.Migration.Migrations()) == 0 {
++		t.Errorf("expected at least 1 migration, got 0")
++	}
++}
++
+diff --git a/pkg/routes/static.go b/pkg/routes/static.go
+index a2b01b71d..3ee3e389f 100644
+--- a/pkg/routes/static.go
++++ b/pkg/routes/static.go
+@@ -49,6 +49,7 @@ const (
+ 	window.SENTRY_DSN = '{{ .SENTRY_DSN }}'
+ 	window.CUSTOM_LOGO_URL = '{{ .CUSTOM_LOGO_URL }}'
+ 	window.CUSTOM_LOGO_URL_DARK = '{{ .CUSTOM_LOGO_URL_DARK }}'
++	window.CARTO_API_KEY = '{{ .CARTO_API_KEY }}'
+ </script>`
+ )
+ 
+@@ -93,6 +94,12 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
+ 		data["CUSTOM_LOGO_URL"] = config.ServiceCustomLogoURL.GetString()
+ 		data["CUSTOM_LOGO_URL_DARK"] = config.ServiceCustomLogoURLDark.GetString()
+ 
++		cartoKey := os.Getenv("CARTO_BASEMAPS_API_KEY")
++		if cartoKey == "" {
++			cartoKey = os.Getenv("VIKUNJA_PLUGINS_MAPS_CARTO_API_KEY")
++		}
++		data["CARTO_API_KEY"] = cartoKey
++
+ 		err = tmpl.Execute(&tplOutput, data)
+ 		if err != nil {
+ 			return err
+diff --git a/plugins/maps/main.go b/plugins/maps/main.go
+new file mode 100644
+index 000000000..15212ceeb
+--- /dev/null
++++ b/plugins/maps/main.go
+@@ -0,0 +1,511 @@
++//go:build ignore
++
++package main
++
++import (
++	"bytes"
++	"encoding/json"
++	"fmt"
++	"io"
++	"net/http"
++	"net/url"
++	"strconv"
++	"strings"
++	"time"
++
++	"code.vikunja.io/api/pkg/db"
++	"code.vikunja.io/api/pkg/events"
++	"code.vikunja.io/api/pkg/log"
++	"code.vikunja.io/api/pkg/models"
++	"code.vikunja.io/api/pkg/plugins"
++	"code.vikunja.io/api/pkg/user"
++
++	"github.com/ThreeDotsLabs/watermill/message"
++	"github.com/labstack/echo/v5"
++	"github.com/spf13/viper"
++	"src.techknowlogick.com/xormigrate"
++	"xorm.io/xorm"
++)
++
++type TaskLocation struct {
++	ID          int64     `xorm:"pk autoincr bigint not null" json:"id"`
++	TaskID      int64     `xorm:"bigint not null unique index" json:"task_id"`
++	ProjectID   int64     `xorm:"bigint not null index" json:"project_id"`
++	DisplayName string    `xorm:"varchar(255) not null" json:"display_name"`
++	Title       string    `xorm:"-" json:"title,omitempty"`
++	Address     string    `xorm:"varchar(500) null" json:"address"`
++	Latitude    float64   `xorm:"double not null" json:"latitude"`
++	Longitude   float64   `xorm:"double not null" json:"longitude"`
++	PlaceID     string    `xorm:"varchar(255) null" json:"place_id"`
++	Provider    string    `xorm:"varchar(50) not null default 'nominatim'" json:"provider"`
++	MapURL      string    `xorm:"varchar(1000) null" json:"map_url"`
++	Created     time.Time `xorm:"created not null" json:"created"`
++	Updated     time.Time `xorm:"updated not null" json:"updated"`
++}
++
++func (TaskLocation) TableName() string {
++	return "task_locations"
++}
++
++type GeocodeSuggestion struct {
++	PlaceID     string  `json:"place_id"`
++	DisplayName string  `json:"display_name"`
++	Address     string  `json:"address"`
++	Latitude    float64 `json:"latitude"`
++	Longitude   float64 `json:"longitude"`
++	Lat         float64 `json:"lat"`
++	Lon         float64 `json:"lon"`
++	Provider    string  `json:"provider"`
++	MapURL      string  `json:"map_url"`
++}
++
++type MapsPlugin struct {
++	httpClient *http.Client
++}
++
++var singleton = &MapsPlugin{
++	httpClient: &http.Client{Timeout: 8 * time.Second},
++}
++
++func NewPlugin() plugins.Plugin {
++	return singleton
++}
++
++func NewMigrationPlugin() plugins.MigrationPlugin {
++	return singleton
++}
++
++func NewAuthenticatedRouterPlugin() plugins.AuthenticatedRouterPlugin {
++	return singleton
++}
++
++func (p *MapsPlugin) Name() string {
++	return "maps"
++}
++
++func (p *MapsPlugin) Version() string {
++	return "1.0.0"
++}
++
++func (p *MapsPlugin) Init() error {
++	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
++	log.Infof("Vikunja Maps plugin initialized (provider=%s)", p.getProvider())
++	return nil
++}
++
++func (p *MapsPlugin) Shutdown() error {
++	log.Infof("Vikunja Maps plugin shutting down")
++	return nil
++}
++
++func (p *MapsPlugin) getProvider() string {
++	prov := strings.ToLower(strings.TrimSpace(viper.GetString("plugins.maps.geocoder_provider")))
++	if prov == "google" {
++		return "google"
++	}
++	if prov == "nominatim" {
++		return "nominatim"
++	}
++	if viper.GetString("plugins.maps.google_api_key") != "" {
++		return "google"
++	}
++	return "nominatim"
++}
++
++func (p *MapsPlugin) Migrations() []*xormigrate.Migration {
++	return []*xormigrate.Migration{
++		{
++			ID:          "20261018000001-create-task-locations-table",
++			Description: "Create task_locations table for storing work item coordinates and place metadata",
++			Migrate: func(tx *xorm.Engine) error {
++				return tx.Table("task_locations").Sync2(&TaskLocation{})
++			},
++			Rollback: func(tx *xorm.Engine) error {
++				return tx.DropTables("task_locations")
++			},
++		},
++		{
++			ID:          "20261018000002-add-default-map-views-to-existing-projects",
++			Description: "Ensure all existing projects have a default Map view",
++			Migrate: func(tx *xorm.Engine) error {
++				_, err := tx.Exec(`
++					INSERT INTO project_views (title, project_id, view_kind, position, created, updated)
++					SELECT 'Map', p.id, 4, 500, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
++					FROM projects p
++					WHERE NOT EXISTS (
++						SELECT 1 FROM project_views pv WHERE pv.project_id = p.id AND pv.view_kind = 4
++					)
++				`)
++				return err
++			},
++			Rollback: func(tx *xorm.Engine) error {
++				return nil
++			},
++		},
++	}
++}
++
++func (p *MapsPlugin) RegisterAuthenticatedRoutes(g *echo.Group) {
++	mapsGroup := g.Group("/maps")
++	mapsGroup.GET("/geocode", p.handleGeocodeSearch)
++	mapsGroup.GET("/tasks/:taskID/location", p.handleGetTaskLocation)
++	mapsGroup.POST("/tasks/:taskID/location", p.handleUpsertTaskLocation)
++	mapsGroup.PUT("/tasks/:taskID/location", p.handleUpsertTaskLocation)
++	mapsGroup.DELETE("/tasks/:taskID/location", p.handleDeleteTaskLocation)
++	mapsGroup.GET("/projects/:projectID/locations", p.handleListProjectLocations)
++}
++
++func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
++	query := strings.TrimSpace(c.QueryParam("q"))
++	if len(query) < 2 {
++		return c.JSON(http.StatusOK, []GeocodeSuggestion{})
++	}
++
++	provider := p.getProvider()
++	if provider == "google" {
++		results, err := p.searchGooglePlaces(query)
++		if err == nil && len(results) > 0 {
++			return c.JSON(http.StatusOK, results)
++		}
++		if err != nil {
++			log.Warningf("Google Places search failed, falling back to Nominatim: %v", err)
++		}
++		nomResults, nomErr := p.searchNominatim(query)
++		if nomErr == nil {
++			return c.JSON(http.StatusOK, nomResults)
++		}
++		log.Errorf("Both Google Places and Nominatim failed: %v / %v", err, nomErr)
++		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed")
++	}
++
++	results, err := p.searchNominatim(query)
++	if err == nil && len(results) > 0 {
++		return c.JSON(http.StatusOK, results)
++	}
++	if err != nil {
++		log.Warningf("Nominatim search failed: %v", err)
++	}
++	if viper.GetString("plugins.maps.google_api_key") != "" {
++		gResults, gErr := p.searchGooglePlaces(query)
++		if gErr == nil {
++			return c.JSON(http.StatusOK, gResults)
++		}
++		log.Errorf("Fallback to Google Places also failed: %v", gErr)
++	}
++	if err != nil {
++		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed: "+err.Error())
++	}
++	return c.JSON(http.StatusOK, results)
++}
++
++func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, error) {
++	apiKey := viper.GetString("plugins.maps.google_api_key")
++	if apiKey == "" {
++		return nil, fmt.Errorf("plugins.maps.google_api_key is not configured")
++	}
++	reqBody, _ := json.Marshal(map[string]interface{}{
++		"textQuery":      query,
++		"maxResultCount": 6,
++	})
++	req, err := http.NewRequest("POST", "https://places.googleapis.com/v1/places:searchText", bytes.NewReader(reqBody))
++	if err != nil {
++		return nil, err
++	}
++	req.Header.Set("Content-Type", "application/json")
++	req.Header.Set("X-Goog-Api-Key", apiKey)
++	req.Header.Set("X-Goog-FieldMask", "places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri")
++
++	resp, err := p.httpClient.Do(req)
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++	if resp.StatusCode >= 300 {
++		bodyBytes, _ := io.ReadAll(resp.Body)
++		return nil, fmt.Errorf("google places returned status %d: %s", resp.StatusCode, string(bodyBytes))
++	}
++
++	var parsed struct {
++		Places []struct {
++			ID          string `json:"id"`
++			DisplayName struct {
++				Text string `json:"text"`
++			} `json:"displayName"`
++			FormattedAddress string `json:"formattedAddress"`
++			Location         struct {
++				Latitude  float64 `json:"latitude"`
++				Longitude float64 `json:"longitude"`
++			} `json:"location"`
++			GoogleMapsURI string `json:"googleMapsUri"`
++		} `json:"places"`
++	}
++	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
++		return nil, err
++	}
++
++	suggestions := make([]GeocodeSuggestion, 0, len(parsed.Places))
++	for _, pl := range parsed.Places {
++		suggestions = append(suggestions, GeocodeSuggestion{
++			PlaceID:     pl.ID,
++			DisplayName: pl.DisplayName.Text,
++			Address:     pl.FormattedAddress,
++			Latitude:    pl.Location.Latitude,
++			Longitude:   pl.Location.Longitude,
++			Lat:         pl.Location.Latitude,
++			Lon:         pl.Location.Longitude,
++			Provider:    "google",
++			MapURL:      pl.GoogleMapsURI,
++		})
++	}
++	return suggestions, nil
++}
++
++func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) {
++	baseURL := viper.GetString("plugins.maps.nominatim_url")
++	if baseURL == "" {
++		baseURL = "https://nominatim.openstreetmap.org"
++	}
++	userAgent := viper.GetString("plugins.maps.nominatim_user_agent")
++	if userAgent == "" || strings.Contains(userAgent, "admin@example.com") {
++		userAgent = "Vikunja-Maps-Plugin/1.0 (+https://github.com/jessezetko/vikunja-map-plugin)"
++	}
++	u, err := url.Parse(strings.TrimRight(baseURL, "/") + "/search")
++	if err != nil {
++		return nil, err
++	}
++	q := u.Query()
++	q.Set("q", query)
++	q.Set("format", "jsonv2")
++	q.Set("addressdetails", "1")
++	q.Set("limit", "6")
++	u.RawQuery = q.Encode()
++
++	req, err := http.NewRequest("GET", u.String(), nil)
++	if err != nil {
++		return nil, err
++	}
++	req.Header.Set("User-Agent", userAgent)
++	req.Header.Set("Accept", "application/json")
++	req.Header.Set("Accept-Language", "en")
++
++	resp, err := p.httpClient.Do(req)
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	if resp.StatusCode != http.StatusOK {
++		bodyBytes, _ := io.ReadAll(resp.Body)
++		return nil, fmt.Errorf("nominatim returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
++	}
++
++	var raw []struct {
++		PlaceID     int64  `json:"place_id"`
++		Name        string `json:"name"`
++		DisplayName string `json:"display_name"`
++		Lat         string `json:"lat"`
++		Lon         string `json:"lon"`
++	}
++	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
++		return nil, err
++	}
++
++	suggestions := make([]GeocodeSuggestion, 0, len(raw))
++	for _, item := range raw {
++		lat, _ := strconv.ParseFloat(item.Lat, 64)
++		lon, _ := strconv.ParseFloat(item.Lon, 64)
++		label := item.Name
++		if label == "" {
++			label = strings.Split(item.DisplayName, ",")[0]
++		}
++		suggestions = append(suggestions, GeocodeSuggestion{
++			PlaceID:     strconv.FormatInt(item.PlaceID, 10),
++			DisplayName: label,
++			Address:     item.DisplayName,
++			Latitude:    lat,
++			Longitude:   lon,
++			Lat:         lat,
++			Lon:         lon,
++			Provider:    "nominatim",
++			MapURL:      fmt.Sprintf("https://www.openstreetmap.org/?mlat=%f&mlon=%f#map=16/%f/%f", lat, lon, lat, lon),
++		})
++	}
++	return suggestions, nil
++}
++
++func (p *MapsPlugin) handleGetTaskLocation(c *echo.Context) error {
++	taskID, err := strconv.ParseInt(c.Param("taskID"), 10, 64)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusBadRequest, "Invalid task ID")
++	}
++	s := db.NewSession()
++	defer s.Close()
++
++	currentUser, err := user.GetCurrentUserFromDB(s, c)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
++	}
++	task := &models.Task{ID: taskID}
++	canRead, _, err := task.CanRead(s, currentUser)
++	if err != nil || !canRead {
++		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
++	}
++
++	loc := &TaskLocation{}
++	has, err := s.Table("task_locations").Where("task_id = ?", taskID).Get(loc)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++	if !has {
++		return c.JSON(http.StatusOK, nil)
++	}
++	loc.Title = loc.DisplayName
++	return c.JSON(http.StatusOK, loc)
++}
++
++func (p *MapsPlugin) handleUpsertTaskLocation(c *echo.Context) error {
++	taskID, err := strconv.ParseInt(c.Param("taskID"), 10, 64)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusBadRequest, "Invalid task ID")
++	}
++	var input TaskLocation
++	if err := c.Bind(&input); err != nil {
++		return echo.NewHTTPError(http.StatusBadRequest, "Invalid location payload")
++	}
++	if strings.TrimSpace(input.DisplayName) == "" {
++		input.DisplayName = strings.TrimSpace(input.Title)
++	}
++	if strings.TrimSpace(input.DisplayName) == "" {
++		input.DisplayName = strings.TrimSpace(input.Address)
++	}
++	if strings.TrimSpace(input.Address) == "" {
++		input.Address = input.DisplayName
++	}
++	if strings.TrimSpace(input.DisplayName) == "" || input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
++		return echo.NewHTTPError(http.StatusBadRequest, "Valid display_name or title and coordinates are required")
++	}
++
++	s := db.NewSession()
++	defer s.Close()
++
++	currentUser, err := user.GetCurrentUserFromDB(s, c)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
++	}
++	task := &models.Task{ID: taskID}
++	canUpdate, err := task.CanUpdate(s, currentUser)
++	if err != nil || !canUpdate {
++		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
++	}
++	if err := task.ReadOne(s, currentUser); err != nil {
++		return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++	}
++
++	existing := &TaskLocation{}
++	has, err := s.Table("task_locations").Where("task_id = ?", taskID).Get(existing)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++
++	input.TaskID = taskID
++	input.ProjectID = task.ProjectID
++	if input.Provider == "" {
++		input.Provider = p.getProvider()
++	}
++
++	if has {
++		input.ID = existing.ID
++		_, err = s.Table("task_locations").ID(existing.ID).Cols("project_id", "display_name", "address", "latitude", "longitude", "place_id", "provider", "map_url").Update(&input)
++	} else {
++		_, err = s.Table("task_locations").Insert(&input)
++	}
++	if err != nil {
++		_ = s.Rollback()
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to save location")
++	}
++	if err := s.Commit(); err != nil {
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit location")
++	}
++	input.Title = input.DisplayName
++	return c.JSON(http.StatusOK, input)
++}
++
++func (p *MapsPlugin) handleDeleteTaskLocation(c *echo.Context) error {
++	taskID, err := strconv.ParseInt(c.Param("taskID"), 10, 64)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusBadRequest, "Invalid task ID")
++	}
++	s := db.NewSession()
++	defer s.Close()
++
++	currentUser, err := user.GetCurrentUserFromDB(s, c)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
++	}
++	task := &models.Task{ID: taskID}
++	canUpdate, err := task.CanUpdate(s, currentUser)
++	if err != nil || !canUpdate {
++		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
++	}
++	_, err = s.Table("task_locations").Where("task_id = ?", taskID).Delete(&TaskLocation{})
++	if err != nil {
++		_ = s.Rollback()
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to delete location")
++	}
++	if err := s.Commit(); err != nil {
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to commit location deletion")
++	}
++	return c.JSON(http.StatusOK, map[string]string{"message": "Location deleted"})
++}
++
++func (p *MapsPlugin) handleListProjectLocations(c *echo.Context) error {
++	projectID, err := strconv.ParseInt(c.Param("projectID"), 10, 64)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusBadRequest, "Invalid project ID")
++	}
++	s := db.NewSession()
++	defer s.Close()
++
++	currentUser, err := user.GetCurrentUserFromDB(s, c)
++	if err != nil {
++		return echo.NewHTTPError(http.StatusUnauthorized, "Unauthorized")
++	}
++	project := &models.Project{ID: projectID}
++	canRead, _, err := project.CanRead(s, currentUser)
++	if err != nil || !canRead {
++		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
++	}
++
++	var locations []TaskLocation
++	if err := s.Table("task_locations").Where("project_id = ?", projectID).Find(&locations); err != nil {
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch project locations")
++	}
++	for i := range locations {
++		locations[i].Title = locations[i].DisplayName
++	}
++	return c.JSON(http.StatusOK, locations)
++}
++
++type TaskDeletedLocationCleanupListener struct{}
++
++func (l *TaskDeletedLocationCleanupListener) Name() string {
++	return "maps.task.deleted.cleanup"
++}
++
++func (l *TaskDeletedLocationCleanupListener) Handle(msg *message.Message) error {
++	var ev models.TaskDeletedEvent
++	if err := json.Unmarshal(msg.Payload, &ev); err != nil {
++		return err
++	}
++	if ev.Task == nil {
++		return nil
++	}
++	s := db.NewSession()
++	defer s.Close()
++	_, err := s.Table("task_locations").Where("task_id = ?", ev.Task.ID).Delete(&TaskLocation{})
++	if err != nil {
++		_ = s.Rollback()
++		return err
++	}
++	return s.Commit()
++}
