@@ -4,6 +4,8 @@ A complete **Maps & Location** feature for [Vikunja](https://vikunja.io/), addin
 
 Designed for vacation planning, travel itineraries, field service, and geo-tagged task management.
 
+![Vikunja Project Map View](docs/images/map-view.png)
+
 ---
 
 ## Features
@@ -110,16 +112,22 @@ plugins:
 ### 1. Adding a Location to a Task
 1. Open any task in Vikunja to view the task detail modal.
 2. In the right-hand sidebar under **Attributes**, click **Set Location** (pin icon).
-3. Type an address, landmark, or city into the search input.
-4. Select the location from the dropdown suggestions. The coordinates and address are saved immediately.
-5. Click the external link icon on the saved location tag to view the place on OpenStreetMap.
+3. Type an address, landmark, or city into the search input. Suggestions appear automatically via Nominatim or Google Places:
+
+![Location Autocomplete Search](docs/images/location-autocomplete.png)
+
+4. Select the location from the dropdown suggestions. The structured coordinates and address are saved immediately.
+5. Once saved, a compact location badge appears with an external link to view the coordinates directly on OpenStreetMap:
+
+![Saved Work Item Location](docs/images/task-location-saved.png)
 
 ### 2. Viewing Projects on the Map
 1. Navigate to any project.
 2. In the project view bar (next to *List*, *Gantt*, *Table*, *Kanban*), click the **`+`** button to add a view.
 3. Select **Map** and click **Save**.
-4. The interactive map renders pins for all geocoded tasks in the project.
-5. Click any pin to open its popup, or click **Open Work Item** to navigate directly to the task. Use **Fit all pins** to frame all mapped tasks on screen.
+4. The interactive map renders pins for all geocoded tasks in the project, complete with pin popups, a list sidebar, and a **Fit all pins** control:
+
+![Vikunja Project Map View](docs/images/map-view.png)
 
 ---
 
