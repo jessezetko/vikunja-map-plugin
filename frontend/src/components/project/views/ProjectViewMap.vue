@@ -21,6 +21,19 @@
 					/>
 					{{ $t('project.map.fitAll') }}
 				</BaseButton>
+
+				<BaseButton
+					size="small"
+					variant="secondary"
+					class="mobile-locations-btn mis-2"
+					@click="isMobileDrawerOpen = true"
+				>
+					<Icon
+						icon="list"
+						class="mie-1"
+					/>
+					{{ $t('task.location.title') }} ({{ mappedTasks.length }})
+				</BaseButton>
 			</div>
 		</template>
 
@@ -32,9 +45,10 @@
 					:class="{'dark-osm-tiles': isUsingOsmFallback && isDark}"
 				/>
 
+				<!-- Desktop Persistent Sidebar -->
 				<aside
 					v-if="!isLoadingLocations && mappedTasks.length > 0"
-					class="map-sidebar"
+					class="map-sidebar desktop-only"
 				>
 					<h4 class="sidebar-heading">
 						<Icon
@@ -59,6 +73,51 @@
 						</li>
 					</ul>
 				</aside>
+
+				<!-- Mobile Slide-Up Drawer -->
+				<div
+					v-if="!isLoadingLocations && mappedTasks.length > 0 && isMobileDrawerOpen"
+					class="mobile-drawer-backdrop"
+					@click="isMobileDrawerOpen = false"
+				>
+					<div
+						class="mobile-drawer-panel"
+						@click.stop
+					>
+						<div class="mobile-drawer-header">
+							<span class="mobile-drawer-title">
+								<Icon
+									icon="map-marker-alt"
+									class="mie-1"
+								/>
+								{{ $t('task.location.title') }} ({{ mappedTasks.length }})
+							</span>
+							<button
+								type="button"
+								class="mobile-drawer-close"
+								:aria-label="$t('misc.closeDialog')"
+								@click="isMobileDrawerOpen = false"
+							>
+								<Icon icon="xmark" />
+							</button>
+						</div>
+						<ul class="pinned-locations-list">
+							<li
+								v-for="item in mappedTasks"
+								:key="item.task.id"
+								class="pinned-location-item"
+								@click="onMobileLocationClick(item.task.id)"
+							>
+								<div class="pinned-task-title">
+									{{ item.task.title }}
+								</div>
+								<div class="pinned-task-address">
+									{{ item.location.address || item.location.title }}
+								</div>
+							</li>
+						</ul>
+					</div>
+				</div>
 
 				<!-- Empty hint shown ONLY after loading finishes and no locations exist -->
 				<div
@@ -102,6 +161,7 @@ const props = withDefaults(defineProps<{
 
 const router = useRouter()
 const {isDark} = useColorScheme()
+const isMobileDrawerOpen = ref(false)
 
 const mapContainer = ref<HTMLElement | null>(null)
 const locationsByTaskId = ref<Map<number, TaskLocation>>(new Map())
@@ -276,13 +336,21 @@ function focusTaskPin(taskId: number) {
 	marker.openPopup()
 }
 
+function onMobileLocationClick(taskId?: number) {
+	if (!taskId) return
+	focusTaskPin(taskId)
+	isMobileDrawerOpen.value = false
+}
+
 function tryInitAndRender() {
 	if (mapContainer.value && !mapInstance) {
 		initMap()
 	}
 	if (mapInstance) {
-		mapInstance.invalidateSize()
-		renderMarkers()
+		nextTick(() => {
+			mapInstance?.invalidateSize()
+			renderMarkers()
+		})
 	}
 }
 
@@ -346,10 +414,7 @@ onBeforeUnmount(() => {
 
 <style scoped lang="scss">
 .project-map-view-wrapper {
-	block-size: 100%;
-	display: flex;
-	flex-direction: column;
-	flex: 1;
+	inline-size: 100%;
 }
 
 .map-toolbar {
@@ -357,31 +422,45 @@ onBeforeUnmount(() => {
 	align-items: center;
 }
 
+.mobile-locations-btn {
+	@media screen and (min-width: $tablet) {
+		display: none !important;
+	}
+}
+
 .project-map-view {
-	flex: 1;
 	inline-size: 100%;
-	block-size: calc(100vh - 170px);
-	min-block-size: 550px;
+	block-size: calc(100vh - #{$navbar-height} - 1.5rem - #{$switch-view-height} - 1rem - 1.5rem);
+	min-block-size: 500px;
 	border-radius: $radius;
 	overflow: hidden;
 	border: 1px solid var(--border);
 	background: var(--scheme-main);
 	position: relative;
 	display: flex;
+
+	@media screen and (max-width: $tablet) {
+		block-size: calc(100vh - #{$navbar-height} - 1.5rem - (#{$switch-view-height} * 2) - 1rem - 1rem);
+		min-block-size: 380px;
+	}
 }
 
 .map-layout {
 	display: flex;
 	inline-size: 100%;
 	block-size: 100%;
+	flex: 1;
+	min-block-size: 0;
 	position: relative;
+	overflow: hidden;
 }
 
 .leaflet-map-canvas {
 	flex: 1;
 	inline-size: 100%;
 	block-size: 100%;
-	min-block-size: 550px;
+	min-block-size: 0;
+	position: relative;
 	z-index: 1;
 
 	&.dark-osm-tiles :deep(.leaflet-tile-pane) {
@@ -391,6 +470,8 @@ onBeforeUnmount(() => {
 
 .map-sidebar {
 	inline-size: 320px;
+	block-size: 100%;
+	min-block-size: 0;
 	background: var(--scheme-main);
 	border-inline-start: 1px solid var(--border);
 	overflow-y: auto;
@@ -398,10 +479,17 @@ onBeforeUnmount(() => {
 	z-index: 10;
 	display: flex;
 	flex-direction: column;
+	flex-shrink: 0;
 	box-shadow: -4px 0 16px rgba(0, 0, 0, 0.08);
 
 	:global(.dark) & {
 		box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
+	}
+
+	&.desktop-only {
+		@media screen and (max-width: $tablet) {
+			display: none !important;
+		}
 	}
 }
 
@@ -412,6 +500,72 @@ onBeforeUnmount(() => {
 	margin-block-end: 1rem;
 	display: flex;
 	align-items: center;
+}
+
+.mobile-drawer-backdrop {
+	position: absolute;
+	inset: 0;
+	z-index: 1000;
+	background: rgba(0, 0, 0, 0.45);
+	backdrop-filter: blur(2px);
+	display: flex;
+	flex-direction: column;
+	justify-content: flex-end;
+
+	@media screen and (min-width: $tablet) {
+		display: none !important;
+	}
+}
+
+.mobile-drawer-panel {
+	background: var(--scheme-main);
+	border-radius: $radius $radius 0 0;
+	border-block-start: 1px solid var(--border);
+	padding: 1rem;
+	max-block-size: 55vh;
+	overflow-y: auto;
+	box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.25);
+	animation: slide-up 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slide-up {
+	from {
+		transform: translateY(100%);
+	}
+	to {
+		transform: translateY(0);
+	}
+}
+
+.mobile-drawer-header {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	margin-block-end: 0.85rem;
+	padding-block-end: 0.5rem;
+	border-block-end: 1px solid var(--border);
+}
+
+.mobile-drawer-title {
+	font-weight: 700;
+	font-size: 0.95rem;
+	color: var(--text-strong);
+}
+
+.mobile-drawer-close {
+	background: transparent;
+	border: none;
+	color: var(--text-light);
+	font-size: 1rem;
+	cursor: pointer;
+	padding: 0.25rem;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	&:hover {
+		color: var(--text);
+	}
 }
 
 .pinned-locations-list {
@@ -526,6 +680,8 @@ onBeforeUnmount(() => {
 }
 
 :deep(.leaflet-container) {
+	inline-size: 100%;
+	block-size: 100%;
 	font-family: inherit;
 	background: var(--scheme-main);
 }
