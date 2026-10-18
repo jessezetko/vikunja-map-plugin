@@ -1,0 +1,51 @@
+services:
+  vikunja:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: vikunja-maps:latest
+    container_name: vikunja
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: http://localhost:3456
+      VIKUNJA_DATABASE_HOST: db
+      VIKUNJA_DATABASE_PASSWORD: database-password-here
+      VIKUNJA_DATABASE_TYPE: postgres
+      VIKUNJA_DATABASE_USER: vikunja
+      VIKUNJA_DATABASE_DATABASE: vikunja
+      VIKUNJA_SERVICE_SECRET: service-secret-here
+      # Plugin configuration
+      VIKUNJA_PLUGINS_ENABLED: "true"
+      VIKUNJA_PLUGINS_LOADER: "yaegi"
+      VIKUNJA_PLUGINS_DIR: "/app/vikunja/plugins"
+      VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "nominatim" # or "google"
+      # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
+      # CARTO_BASEMAPS_API_KEY: ""
+    ports:
+      - "3456:3456"
+    volumes:
+      - vikunja_files:/app/vikunja/files
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: postgres:18-alpine
+    container_name: vikunja-db
+    environment:
+      POSTGRES_DB: vikunja
+      POSTGRES_USER: vikunja
+      POSTGRES_PASSWORD: postgres-password-here
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -h localhost -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 2s
+      timeout: 5s
+      retries: 15
+      start_period: 10s
+
+volumes:
+  vikunja_files:
+  pgdata:

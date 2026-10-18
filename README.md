@@ -1,6 +1,6 @@
 # Vikunja Maps & Location Plugin
 
-A modular **Maps & Location** feature for [Vikunja](https://vikunja.io/), adding work item location search, geocoding autocomplete, and an interactive **OpenStreetMap** project view tab.
+A complete **Maps & Location** feature for [Vikunja](https://vikunja.io/), adding work item location search, geocoding autocomplete, and an interactive **OpenStreetMap** project view tab.
 
 Designed for vacation planning, travel itineraries, field service, and geo-tagged task management.
 
@@ -19,118 +19,121 @@ Designed for vacation planning, travel itineraries, field service, and geo-tagge
 
 ---
 
-## Repository Structure
+## How It Works (And Why a Build Is Required)
 
-```
-vikunja-map-plugin/
-├── LICENSE                        # GNU AGPL-3.0 License
-├── README.md                      # Documentation & configuration guide
-├── install.sh                     # Automated 1-step installer script
-├── vikunja-core-maps.patch        # Clean patch for Vikunja core enum & frontend
-├── plugins/
-│   └── maps/
-│       └── main.go                # Backend Yaegi Go plugin
-└── frontend/
-    └── src/
-        ├── client/queries/maps.ts # API client queries for map endpoints
-        ├── components/
-        │   ├── project/views/
-        │   │   └── ProjectViewMap.vue # Leaflet Map View tab
-        │   └── tasks/partials/
-        │       └── LocationSearchField.vue # Autocomplete task input
-```
+Vikunja plugins currently only run Go scripts on the backend via the [Yaegi](https://github.com/traefik/yaegi) interpreter. Because Vikunja does not yet have a frontend plugin system, the official Docker image (`vikunja/vikunja:latest`) cannot dynamically load new UI components.
+
+To provide both the **Task Location field** and the **Map view tab**, this repository includes:
+1. **The Backend Plugin** (`plugins/maps/main.go`): Exposes geocoding proxies, CRUD endpoints, and DB migrations.
+2. **A Core & Frontend Integration Patch** (`vikunja-core-maps.patch`): Adds the `map` view enum and mounts the Vue 3 Leaflet components.
 
 ---
 
-## Quick Installation
+## Installation Method 1: Docker (Recommended for Self-Hosters)
 
-Run `install.sh` pointing to your Vikunja repository root:
+**No Go or Node.js required on your host machine.** The included multi-stage `Dockerfile` clones Vikunja, applies the patch, installs Leaflet, and compiles the production container automatically.
 
+### 1. Clone this repository
 ```bash
 git clone https://github.com/jessezetko/vikunja-map-plugin.git
 cd vikunja-map-plugin
-./install.sh /path/to/your/vikunja
 ```
 
-The script will:
-1. Copy the backend plugin into `plugins/maps/main.go`.
-2. Apply `vikunja-core-maps.patch` to register the `Map` view kind and frontend components.
-3. Install the required `leaflet` and `@types/leaflet` dependencies in `frontend/`.
+### 2. Start with Docker Compose
+```bash
+cp docker-compose.example.yml docker-compose.yml
+docker compose up -d --build
+```
+
+Your custom Vikunja instance with the Maps plugin will be built and accessible at `http://localhost:3456`.
 
 ---
 
-## Manual Installation
+## Installation Method 2: Build From Source (For Developers)
 
-If you prefer to install manually:
+If you compile Vikunja locally on bare metal:
 
-### 1. Backend Plugin
-Copy `plugins/maps/main.go` to your Vikunja repository:
+### 1. Clone both repositories
 ```bash
-cp -r plugins/maps /path/to/vikunja/plugins/
+git clone https://github.com/go-vikunja/vikunja.git
+git clone https://github.com/jessezetko/vikunja-map-plugin.git
 ```
 
-### 2. Core & Frontend Integration
-Apply the minimal patch from your Vikunja root:
+### 2. Run the automated installer
 ```bash
-cd /path/to/vikunja
-git apply /path/to/vikunja-map-plugin/vikunja-core-maps.patch
+cd vikunja-map-plugin
+./install.sh ../vikunja
 ```
 
-### 3. Frontend Dependencies
-Install Leaflet in the `frontend` directory:
+### 3. Build & Run
 ```bash
-cd /path/to/vikunja/frontend
-pnpm add leaflet@^1.9.4
-pnpm add -D @types/leaflet@^1.9.14
-```
-
-### 4. Build Vikunja
-Build both frontend assets and the backend binary:
-```bash
-cd /path/to/vikunja/frontend
+cd ../vikunja/frontend
 pnpm run build
 
-cd /path/to/vikunja
+cd ..
 mage build:build
+./vikunja
 ```
 
 ---
 
-## Configuration
+## Configuration Reference
 
-Add the following to your Vikunja `config.yml`:
+### Docker Compose Environment Variables
+```yaml
+environment:
+  VIKUNJA_PLUGINS_ENABLED: "true"
+  VIKUNJA_PLUGINS_LOADER: "yaegi"
+  VIKUNJA_PLUGINS_DIR: "/app/vikunja/plugins"
+  # Provider: "nominatim" (default) or "google"
+  VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "nominatim"
+  # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
+  # CARTO_BASEMAPS_API_KEY: ""
+```
 
+### Or in `config.yml`
 ```yaml
 plugins:
+  enabled: true
   loader: 'yaegi'
+  dir: '/app/vikunja/plugins'
   maps:
-    # Geocoding provider: "nominatim" (default) or "google"
-    geocoder_provider: 'nominatim'
-    
-    # Optional: Custom Nominatim base URL (defaults to https://nominatim.openstreetmap.org)
-    # nominatim_url: 'https://nominatim.openstreetmap.org'
-    
-    # Optional: Custom User-Agent header for Nominatim queries
-    # nominatim_user_agent: 'Vikunja-Maps-Plugin/1.0 (contact@yourdomain.com)'
-    
-    # Optional: Google Places API Key (if geocoder_provider is set to "google")
+    geocoder_provider: 'nominatim' # or 'google'
     # google_api_key: 'AIzaSy...'
-```
-
-### Optional CARTO Basemap Key
-
-For high-volume production deployments utilizing CARTO basemaps, set the environment variable:
-```bash
-export CARTO_BASEMAPS_API_KEY="your-carto-key"
+    # nominatim_url: 'https://nominatim.openstreetmap.org'
 ```
 
 ---
 
-## Architectural Notes
+## How to Use in the Web Interface
 
-Vikunja's native plugin architecture currently executes backend Go plugins via the [Yaegi](https://github.com/traefik/yaegi) interpreter (`plugins.Plugin`, `plugins.MigrationPlugin`, and `plugins.AuthenticatedRouterPlugin`). 
+### 1. Adding a Location to a Task
+1. Open any task in Vikunja to view the task detail modal.
+2. In the right-hand sidebar under **Attributes**, click **Set Location** (pin icon).
+3. Type an address, landmark, or city into the search input.
+4. Select the location from the dropdown suggestions. The coordinates and address are saved immediately.
+5. Click the external link icon on the saved location tag to view the place on OpenStreetMap.
 
-Because Vikunja does not yet have a frontend plugin loader system, adding UI views (such as the Map view tab and Task Location input) requires building the frontend with the integrated components. `vikunja-core-maps.patch` makes the minimal changes necessary to bridge the backend plugin endpoints with the Vue 3 user interface.
+### 2. Viewing Projects on the Map
+1. Navigate to any project.
+2. In the project view bar (next to *List*, *Gantt*, *Table*, *Kanban*), click the **`+`** button to add a view.
+3. Select **Map** and click **Save**.
+4. The interactive map renders pins for all geocoded tasks in the project.
+5. Click any pin to open its popup, or click **Open Work Item** to navigate directly to the task. Use **Fit all pins** to frame all mapped tasks on screen.
+
+---
+
+## Verification
+
+To verify that the plugin is running properly:
+```bash
+docker compose logs vikunja | grep -i "maps"
+```
+You should see:
+```text
+INFO Loaded plugin maps
+INFO Vikunja Maps plugin initialized (provider=nominatim)
+```
 
 ---
 
