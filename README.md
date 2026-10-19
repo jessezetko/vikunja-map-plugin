@@ -53,6 +53,16 @@ Your custom Vikunja instance with the Maps plugin will be downloaded and accessi
 
 *(Optional: To build the container image yourself from source instead of pulling from GHCR, clone this repository and run `docker compose up -d --build`)*
 
+### Updating Your Instance
+
+A nightly automated workflow checks for new upstream Vikunja releases, verifies patch compatibility, and publishes updated images to GHCR.
+
+To update your running instance to the latest supported version:
+```bash
+docker compose pull vikunja
+docker compose up -d
+```
+
 ---
 
 ## Installation Method 2: Build From Source (For Developers)
