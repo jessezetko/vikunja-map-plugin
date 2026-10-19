@@ -249,28 +249,32 @@ describe('LocationSearchField.vue', () => {
 		expect(searchSpy).toHaveBeenCalledTimes(1)
 		expect(searchSpy).toHaveBeenCalledWith('Munich', expect.any(AbortSignal))
 	})
+})
 
-	describe('getMapsConfig query function fail-closed fallback', () => {
-		const originalFetch = global.fetch
+describe('getMapsConfig() fail-closed fallback', () => {
+	const originalFetch = global.fetch
 
-		afterEach(() => {
-			global.fetch = originalFetch
-		})
+	afterEach(() => {
+		global.fetch = originalFetch
+		vi.restoreAllMocks()
+	})
 
-		it('returns supports_autocomplete: false when fetch rejects with network error', async () => {
-			global.fetch = vi.fn().mockRejectedValue(new Error('Network connection failed'))
-			const config = await mapsApi.getMapsConfig()
-			expect(config.supports_autocomplete).toBe(false)
-		})
+	it('returns supports_autocomplete: false when fetch rejects with network error', async () => {
+		vi.restoreAllMocks()
+		global.fetch = vi.fn().mockRejectedValue(new Error('Network connection failed'))
+		const config = await mapsApi.getMapsConfig()
+		expect(config.supports_autocomplete).toBe(false)
+	})
 
-		it('returns supports_autocomplete: false when fetch returns non-OK HTTP status', async () => {
-			global.fetch = vi.fn().mockResolvedValue({
-				ok: false,
-				status: 502,
-				statusText: 'Bad Gateway',
-			} as Response)
-			const config = await mapsApi.getMapsConfig()
-			expect(config.supports_autocomplete).toBe(false)
-		})
+	it('returns supports_autocomplete: false when fetch returns non-OK HTTP status', async () => {
+		vi.restoreAllMocks()
+		global.fetch = vi.fn().mockResolvedValue({
+			ok: false,
+			status: 502,
+			statusText: 'Bad Gateway',
+		} as Response)
+		const config = await mapsApi.getMapsConfig()
+		expect(config.supports_autocomplete).toBe(false)
 	})
 })
+
