@@ -106,7 +106,7 @@ index 93db59763..83bf92968 100644
    '@types/markdown-it@14.1.2':
 @@ -12062,6 +12083,8 @@ snapshots:
        picocolors: 1.1.1
-       shell-quote: 1.12.0
+       shell-quote: 1.10.0
  
 +  leaflet@1.9.4: {}
 +
