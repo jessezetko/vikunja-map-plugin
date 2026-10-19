@@ -50,8 +50,9 @@ echo "    Integration patch applied cleanly."
 echo "--> Synchronizing backend plugin files..."
 mkdir -p "${TARGET_DIR}/plugins/maps"
 cp "${SCRIPT_DIR}/plugins/maps/main.go" "${TARGET_DIR}/plugins/maps/main.go"
-if [ -f "${SCRIPT_DIR}/plugins/maps/main_test.go" ]; then
-    cp "${SCRIPT_DIR}/plugins/maps/main_test.go" "${TARGET_DIR}/plugins/maps/main_test.go"
+if [ -f "${SCRIPT_DIR}/frontend/src/components/tasks/partials/LocationSearchField.spec.ts" ]; then
+    mkdir -p "${TARGET_DIR}/frontend/src/components/tasks/partials"
+    cp "${SCRIPT_DIR}/frontend/src/components/tasks/partials/LocationSearchField.spec.ts" "${TARGET_DIR}/frontend/src/components/tasks/partials/LocationSearchField.spec.ts"
 fi
 
 # 3. Ensure frontend Leaflet dependencies are installed

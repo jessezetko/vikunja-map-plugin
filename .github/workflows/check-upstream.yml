@@ -7,13 +7,15 @@ on:
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   check-and-bump:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Fetch Latest Vikunja Release
         id: upstream
@@ -31,7 +33,13 @@ jobs:
           echo "latest_tag=$LATEST_TAG" >> $GITHUB_OUTPUT
           echo "current_ref=$CURRENT_REF" >> $GITHUB_OUTPUT
 
-      - name: Test Patch Against New Release
+      - name: Set up Go
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
+        with:
+          go-version: '1.27'
+
+      - name: Test Patch and Build Against New Release
+        id: patch_test
         if: steps.upstream.outputs.latest_tag != steps.upstream.outputs.current_ref
         run: |
           TAG="${{ steps.upstream.outputs.latest_tag }}"
@@ -40,25 +48,119 @@ jobs:
           git clone --depth 1 --branch "$TAG" https://github.com/go-vikunja/vikunja.git /tmp/vikunja-upstream
 
           if ! git -C /tmp/vikunja-upstream apply --check "$GITHUB_WORKSPACE/vikunja-core-maps.patch"; then
+            echo "patch_ok=false" >> $GITHUB_OUTPUT
+            echo "build_ok=false" >> $GITHUB_OUTPUT
+            echo "failure_reason=patch_failed" >> $GITHUB_OUTPUT
             echo "::error::Patch does not apply cleanly to Vikunja $TAG. Manual review required."
-            exit 1
+            exit 0
+          fi
+          echo "patch_ok=true" >> $GITHUB_OUTPUT
+
+          echo "Testing installer against Vikunja $TAG..."
+          if ! ./install.sh /tmp/vikunja-upstream; then
+            echo "build_ok=false" >> $GITHUB_OUTPUT
+            echo "failure_reason=installer_failed" >> $GITHUB_OUTPUT
+            echo "::error::Installer failed against Vikunja $TAG."
+            exit 0
           fi
 
-          ./install.sh /tmp/vikunja-upstream
+          echo "Testing Go plugin compatibility against Vikunja $TAG..."
+          cp plugins/maps/main.go /tmp/vikunja-upstream/plugins/maps/main.go
+          cp plugins/maps/main_test.go /tmp/vikunja-upstream/plugins/maps/main_test.go
+          if ! (cd /tmp/vikunja-upstream && go test -tags test ./plugins/maps/...); then
+            echo "build_ok=false" >> $GITHUB_OUTPUT
+            echo "failure_reason=plugin_tests_failed" >> $GITHUB_OUTPUT
+            echo "::error::Go tests failed against Vikunja $TAG."
+            exit 0
+          fi
 
-      - name: Bump Version & Commit
-        if: steps.upstream.outputs.latest_tag != steps.upstream.outputs.current_ref
+          echo "build_ok=true" >> $GITHUB_OUTPUT
+
+      - name: Open Issue On Patch Failure
+        if: steps.upstream.outputs.latest_tag != steps.upstream.outputs.current_ref && steps.patch_test.outputs.patch_ok == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           TAG="${{ steps.upstream.outputs.latest_tag }}"
+          ISSUE_TITLE="Patch compatibility failure with upstream Vikunja ${TAG}"
+          EXISTING_ISSUE=$(gh issue list --state open --search "$ISSUE_TITLE" --json number -q '.[0].number')
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "Issue #$EXISTING_ISSUE already open for Vikunja $TAG."
+          else
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body "Automated check detected that \`vikunja-core-maps.patch\` failed \`git apply --check\` against upstream Vikunja release **${TAG}**.
 
+              Changes to upstream frontend dependencies (\`package.json\` / \`pnpm-lock.yaml\`) or core models may require updating the integration patch.
+
+              Direct push to \`main\` has been blocked to ensure latest GHCR container builds remain stable."
+          fi
+          exit 1
+
+      - name: Open Issue On Build or Test Failure
+        if: steps.upstream.outputs.latest_tag != steps.upstream.outputs.current_ref && steps.patch_test.outputs.patch_ok == 'true' && steps.patch_test.outputs.build_ok == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.upstream.outputs.latest_tag }}"
+          REASON="${{ steps.patch_test.outputs.failure_reason }}"
+          ISSUE_TITLE="Upstream bump verification failure with Vikunja ${TAG} (${REASON})"
+          EXISTING_ISSUE=$(gh issue list --state open --search "$ISSUE_TITLE" --json number -q '.[0].number')
+          if [ -n "$EXISTING_ISSUE" ]; then
+            echo "Issue #$EXISTING_ISSUE already open for Vikunja $TAG."
+          else
+            gh issue create \
+              --title "$ISSUE_TITLE" \
+              --body "Automated check detected that while \`vikunja-core-maps.patch\` applied cleanly, subsequent build/test verification failed against upstream Vikunja release **${TAG}** (Reason: \`${REASON}\`).
+
+              Pull Request creation and direct push to \`main\` have been blocked to protect the stability of release and latest container builds."
+          fi
+          exit 1
+
+      - name: Open Pull Request For New Upstream Release
+        if: steps.upstream.outputs.latest_tag != steps.upstream.outputs.current_ref && steps.patch_test.outputs.build_ok == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="${{ steps.upstream.outputs.latest_tag }}"
+          BRANCH_NAME="bump-vikunja-${TAG}"
+
+          # Configure bot identity
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          # Create bump branch
+          git checkout -b "$BRANCH_NAME"
+
+          # Update Dockerfile and CI workflow references
           sed -i "s/^ARG VIKUNJA_REF=.*/ARG VIKUNJA_REF=${TAG}/" Dockerfile
           sed -i "s/ref: v[0-9.]\+/ref: ${TAG}/" .github/workflows/ci.yml
           sed -i "s/VIKUNJA_REF=v[0-9.]\+/VIKUNJA_REF=${TAG}/" .github/workflows/ci.yml
           sed -i "s/type=raw,value=v[0-9.]\+/type=raw,value=${TAG}/" .github/workflows/ci.yml
 
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-
           git add Dockerfile .github/workflows/ci.yml
           git commit -m "chore(deps): bump Vikunja base to ${TAG}"
-          git push origin main
+          git push -u origin "$BRANCH_NAME" --force
+
+          # Open Pull Request if not already present.
+          # Note: PRs created by GITHUB_TOKEN do not trigger subsequent pull_request workflows;
+          # all patch application, installer verification, and Go plugin tests have been verified
+          # in the check step above before opening this PR.
+          EXISTING_PR=$(gh pr list --head "$BRANCH_NAME" --json number -q '.[0].number')
+          if [ -z "$EXISTING_PR" ]; then
+            gh pr create \
+              --title "chore(deps): bump Vikunja base to ${TAG}" \
+              --body "Automated bump to upstream Vikunja release **${TAG}**.
+
+              ### Pre-merge Verification Results:
+              - **Patch compatibility** (\`git apply --check vikunja-core-maps.patch\`): PASSED
+              - **Installer verification** (\`./install.sh\`): PASSED
+              - **Plugin unit tests** (\`go test -tags test ./plugins/maps/...\`): PASSED
+
+              ### GitHub Actions Token Note:
+              Under GitHub Actions security policy, pull requests created by the default \`GITHUB_TOKEN\` do not trigger secondary \`pull_request\` workflows. Because this check workflow directly verified the patch, installer, and test suite prior to creating this PR, maintainers can safely review and merge." \
+              --base main \
+              --head "$BRANCH_NAME"
+          else
+            echo "PR #$EXISTING_PR already exists for $BRANCH_NAME."
+          fi

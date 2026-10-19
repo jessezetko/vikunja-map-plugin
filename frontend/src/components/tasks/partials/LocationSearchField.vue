@@ -158,7 +158,7 @@ const isSearching = ref(false)
 const showDropdown = ref(false)
 const isEditing = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
-const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: true})
+const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: false})
 
 const supportsAutocomplete = computed(() => mapsConfig.value.supports_autocomplete)
 
@@ -334,7 +334,7 @@ onMounted(async () => {
 	try {
 		mapsConfig.value = await getMapsConfig()
 	} catch {
-		mapsConfig.value = {provider: 'photon', supports_autocomplete: true}
+		mapsConfig.value = {provider: 'photon', supports_autocomplete: false}
 	}
 	loadLocation()
 })

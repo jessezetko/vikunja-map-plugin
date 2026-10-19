@@ -186,4 +186,91 @@ describe('LocationSearchField.vue', () => {
 
 		expect(message.error).toHaveBeenCalledWith('task.location.deleteError')
 	})
+
+	it('fails closed and disables autocomplete when getMapsConfig rejects', async () => {
+		vi.spyOn(mapsApi, 'getMapsConfig').mockRejectedValue(new Error('Network error'))
+		const searchSpy = vi.spyOn(mapsApi, 'searchLocations').mockResolvedValue([])
+
+		const wrapper = mount(LocationSearchField, {
+			props: {taskId: 123},
+			global: {
+				mocks: {$t: (k: string) => k},
+				stubs: {Icon: true, BaseButton: true},
+			},
+		})
+
+		await flushPromises()
+
+		const input = wrapper.find('input')
+		await input.setValue('Berlin')
+
+		// Should not search as-you-type because autocomplete must fail closed
+		vi.advanceTimersByTime(500)
+		await flushPromises()
+
+		expect(searchSpy).not.toHaveBeenCalled()
+
+		// Explicit search via Enter key still triggers search
+		await input.trigger('keydown.enter')
+		await flushPromises()
+
+		expect(searchSpy).toHaveBeenCalledTimes(1)
+		expect(searchSpy).toHaveBeenCalledWith('Berlin', expect.any(AbortSignal))
+	})
+
+	it('fails closed and disables autocomplete when getMapsConfig returns non-OK response', async () => {
+		vi.spyOn(mapsApi, 'getMapsConfig').mockResolvedValue({
+			provider: 'photon',
+			supports_autocomplete: false,
+		})
+		const searchSpy = vi.spyOn(mapsApi, 'searchLocations').mockResolvedValue([])
+
+		const wrapper = mount(LocationSearchField, {
+			props: {taskId: 123},
+			global: {
+				mocks: {$t: (k: string) => k},
+				stubs: {Icon: true, BaseButton: true},
+			},
+		})
+
+		await flushPromises()
+
+		const input = wrapper.find('input')
+		await input.setValue('Munich')
+
+		vi.advanceTimersByTime(500)
+		await flushPromises()
+
+		expect(searchSpy).not.toHaveBeenCalled()
+
+		await input.trigger('keydown.enter')
+		await flushPromises()
+
+		expect(searchSpy).toHaveBeenCalledTimes(1)
+		expect(searchSpy).toHaveBeenCalledWith('Munich', expect.any(AbortSignal))
+	})
+
+	describe('getMapsConfig query function fail-closed fallback', () => {
+		const originalFetch = global.fetch
+
+		afterEach(() => {
+			global.fetch = originalFetch
+		})
+
+		it('returns supports_autocomplete: false when fetch rejects with network error', async () => {
+			global.fetch = vi.fn().mockRejectedValue(new Error('Network connection failed'))
+			const config = await mapsApi.getMapsConfig()
+			expect(config.supports_autocomplete).toBe(false)
+		})
+
+		it('returns supports_autocomplete: false when fetch returns non-OK HTTP status', async () => {
+			global.fetch = vi.fn().mockResolvedValue({
+				ok: false,
+				status: 502,
+				statusText: 'Bad Gateway',
+			} as Response)
+			const config = await mapsApi.getMapsConfig()
+			expect(config.supports_autocomplete).toBe(false)
+		})
+	})
 })

@@ -140,11 +140,10 @@ export async function getMapsConfig(): Promise<MapsConfig> {
 			credentials: 'include',
 		})
 		if (!res.ok) {
-			return {provider: 'photon', supports_autocomplete: true}
+			return {provider: 'photon', supports_autocomplete: false}
 		}
 		return await res.json()
 	} catch {
-		return {provider: 'photon', supports_autocomplete: true}
+		return {provider: 'photon', supports_autocomplete: false}
 	}
 }
-

@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [ main ]
+    tags: [ 'v*' ]
   pull_request:
     branches: [ main ]
 
@@ -16,19 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: plugin
 
       - name: Checkout Vikunja Base
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: go-vikunja/vikunja
           ref: v2.7.0
           path: vikunja
 
       - name: Set up Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@f111f3307d8850f501ac008e886eec1fd1932a34 # v5.3.0
         with:
           go-version: '1.27'
           cache-dependency-path: plugin/go.sum
@@ -46,24 +47,24 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: plugin
 
       - name: Checkout Vikunja Base
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: go-vikunja/vikunja
           ref: v2.7.0
           path: vikunja
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@1e60f671b9cd7f40cc07f4b8243377153ceca08f # v4.2.0
         with:
           node-version: 24
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@a3252b78d470290c07bd29c65483240c07802822 # v4.0.0
         with:
           version: latest
 
@@ -71,7 +72,7 @@ jobs:
         run: |
           cd vikunja
           git apply ../plugin/vikunja-core-maps.patch
-          cp ../plugin/frontend/tests/unit/LocationSearchField.spec.ts frontend/src/components/tasks/partials/LocationSearchField.spec.ts
+          cp ../plugin/frontend/src/components/tasks/partials/LocationSearchField.spec.ts frontend/src/components/tasks/partials/LocationSearchField.spec.ts
           cd frontend
           pnpm install --frozen-lockfile
           pnpm test:unit LocationSearchField.spec.ts --run
@@ -81,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           path: plugin
 
@@ -99,14 +100,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Plugin
-        uses: actions/checkout@v4
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
 
       - name: Log in to GitHub Container Registry
         if: github.event_name != 'pull_request'
-        uses: docker/login-action@v3
+        uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -114,15 +115,18 @@ jobs:
 
       - name: Extract Docker metadata
         id: meta
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5.7.0
         with:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
             type=raw,value=v2.7.0
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=tag
 
       - name: Build and push Docker image
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5.4.0
         with:
           context: .
           file: ./Dockerfile

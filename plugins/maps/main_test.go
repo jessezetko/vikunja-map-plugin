@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -13,6 +14,7 @@ import (
 
 	"code.vikunja.io/api/pkg/config"
 	"code.vikunja.io/api/pkg/db"
+	"code.vikunja.io/api/pkg/log"
 	"code.vikunja.io/api/pkg/models"
 	"code.vikunja.io/api/pkg/modules/keyvalue"
 	"code.vikunja.io/api/pkg/user"
@@ -26,6 +28,7 @@ import (
 
 func TestMain(m *testing.M) {
 	config.InitDefaultConfig()
+	log.InitLogger()
 	keyvalue.InitStorage()
 	x, _ := db.CreateTestEngine()
 	_ = x.Table("users").Sync2(&user.User{})
@@ -35,7 +38,8 @@ func TestMain(m *testing.M) {
 }
 
 func TestGeocodeCache(t *testing.T) {
-	cache := newGeocodeCache(100 * time.Millisecond)
+	cache := newGeocodeCache(100*time.Millisecond, 50*time.Millisecond, 3)
+	defer cache.Close()
 
 	sample := []GeocodeSuggestion{
 		{
@@ -63,10 +67,32 @@ func TestGeocodeCache(t *testing.T) {
 	_, found = cache.Get("nominatim", "eiffel")
 	assert.False(t, found)
 
-	// Wait for TTL expiration
-	time.Sleep(120 * time.Millisecond)
+	// Negative result caching with shorter TTL
+	cache.Set("photon", "nonexistent-query", []GeocodeSuggestion{})
+	cachedEmpty, foundEmpty := cache.Get("photon", "nonexistent-query")
+	assert.True(t, foundEmpty)
+	assert.Empty(t, cachedEmpty)
+
+	// Wait for negative TTL (50ms) to expire
+	time.Sleep(60 * time.Millisecond)
+	_, foundEmpty = cache.Get("photon", "nonexistent-query")
+	assert.False(t, foundEmpty, "negative cache entry should expire after negTTL")
+
+	// Verify positive entry still alive before its 100ms TTL
+	// Wait remaining time for 100ms TTL expiration
+	time.Sleep(60 * time.Millisecond)
 	_, found = cache.Get("photon", "eiffel")
 	assert.False(t, found, "expected entry to expire after TTL")
+
+	// Test cache capacity cap
+	cache.Set("p", "q1", sample)
+	cache.Set("p", "q2", sample)
+	cache.Set("p", "q3", sample)
+	cache.Set("p", "q4", sample) // exceeds capacity 3, should evict
+	cache.Lock()
+	entryCount := len(cache.entries)
+	cache.Unlock()
+	assert.LessOrEqual(t, entryCount, 3, "cache should not exceed maxEntries")
 }
 
 func TestNominatimRateLimiter(t *testing.T) {
@@ -100,6 +126,18 @@ func TestSearchPhotonParsing(t *testing.T) {
 					"city": "Paris",
 					"country": "France"
 				}
+			},
+			{
+				"type": "Feature",
+				"geometry": {
+					"coordinates": [999.0, -999.0],
+					"type": "Point"
+				},
+				"properties": {
+					"osm_id": 99999,
+					"osm_type": "N",
+					"name": "Invalid Out-of-Bounds Place"
+				}
 			}
 		]
 	}`
@@ -119,12 +157,15 @@ func TestSearchPhotonParsing(t *testing.T) {
 
 	plugin := &MapsPlugin{
 		httpClient:       server.Client(),
-		cache:            newGeocodeCache(time.Minute),
+		cache:            newGeocodeCache(time.Minute, time.Minute, 100),
 		nominatimLimiter: newRateLimiter(time.Millisecond),
+		photonLimiter:    newRateLimiter(time.Millisecond),
 	}
+	defer plugin.cache.Close()
 
 	results, err := plugin.searchPhoton("eiffel")
 	require.NoError(t, err)
+	// Invalid out-of-bounds coordinates must be filtered out
 	require.Len(t, results, 1)
 
 	res := results[0]
@@ -145,6 +186,20 @@ func TestSearchNominatimParsing(t *testing.T) {
 			"display_name": "Big Ben, Westminster, London, UK",
 			"lat": "51.5007",
 			"lon": "-0.1246"
+		},
+		{
+			"place_id": 98766,
+			"name": "Malformed Coords",
+			"display_name": "Malformed Lat Lon",
+			"lat": "not-a-number",
+			"lon": "also-not-a-number"
+		},
+		{
+			"place_id": 98767,
+			"name": "Out Of Bounds Coords",
+			"display_name": "Out Of Bounds",
+			"lat": "999.0",
+			"lon": "-999.0"
 		}
 	]`
 
@@ -162,12 +217,14 @@ func TestSearchNominatimParsing(t *testing.T) {
 
 	plugin := &MapsPlugin{
 		httpClient:       server.Client(),
-		cache:            newGeocodeCache(time.Minute),
+		cache:            newGeocodeCache(time.Minute, time.Minute, 100),
 		nominatimLimiter: newRateLimiter(time.Millisecond),
 	}
+	defer plugin.cache.Close()
 
 	results, err := plugin.searchNominatim("big ben")
 	require.NoError(t, err)
+	// Malformed and out-of-bounds coords must be rejected, not emitted as 0,0
 	require.Len(t, results, 1)
 
 	res := results[0]
@@ -543,9 +600,11 @@ func TestGeocodeZeroResultsNoCrash(t *testing.T) {
 
 	plugin := &MapsPlugin{
 		httpClient:       photonServer.Client(),
-		cache:            newGeocodeCache(time.Minute),
+		cache:            newGeocodeCache(time.Minute, time.Minute, 100),
 		nominatimLimiter: newRateLimiter(time.Millisecond),
+		photonLimiter:    newRateLimiter(time.Millisecond),
 	}
+	defer plugin.cache.Close()
 
 	e := echo.New()
 	req := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/geocode?q=nowhere", nil)
@@ -558,4 +617,416 @@ func TestGeocodeZeroResultsNoCrash(t *testing.T) {
 	assert.Equal(t, "[]\n", rec.Body.String())
 	assert.False(t, calledNominatim, "Photon search should never leak autocomplete requests to Nominatim")
 }
+
+func TestSearchGooglePlaces(t *testing.T) {
+	fakeGoogleResponse := `{
+		"places": [
+			{
+				"id": "ChIJ123",
+				"displayName": {"text": "Googleplex"},
+				"formattedAddress": "1600 Amphitheatre Pkwy, Mountain View, CA",
+				"location": {"latitude": 37.422, "longitude": -122.084},
+				"googleMapsUri": "https://maps.google.com/?cid=123"
+			},
+			{
+				"id": "ChIJInvalid",
+				"displayName": {"text": "Invalid Coordinates Place"},
+				"formattedAddress": "Somewhere Invalid",
+				"location": {"latitude": 100.0, "longitude": -200.0},
+				"googleMapsUri": "https://maps.google.com/?cid=inv"
+			}
+		]
+	}`
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		assert.Equal(t, "POST", r.Method)
+		assert.Equal(t, "AIzaSyTestKey", r.Header.Get("X-Goog-Api-Key"))
+		assert.Equal(t, "places.id,places.displayName,places.formattedAddress,places.location,places.googleMapsUri", r.Header.Get("X-Goog-FieldMask"))
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fakeGoogleResponse))
+	}))
+	defer server.Close()
+
+	viper.Set("plugins.maps.google_api_key", "AIzaSyTestKey")
+	viper.Set("plugins.maps.google_places_url", server.URL)
+	defer func() {
+		viper.Set("plugins.maps.google_api_key", "")
+		viper.Set("plugins.maps.google_places_url", "")
+	}()
+
+	plugin := &MapsPlugin{
+		httpClient:    server.Client(),
+		cache:         newGeocodeCache(time.Minute, time.Minute, 100),
+		googleLimiter: newRateLimiter(time.Millisecond),
+	}
+	defer plugin.cache.Close()
+
+	results, err := plugin.searchGooglePlaces("googleplex")
+	require.NoError(t, err)
+	require.Len(t, results, 1, "invalid coordinates place must be filtered out")
+	assert.Equal(t, "ChIJ123", results[0].PlaceID)
+	assert.Equal(t, "Googleplex", results[0].DisplayName)
+	assert.Equal(t, "1600 Amphitheatre Pkwy, Mountain View, CA", results[0].Address)
+	assert.InDelta(t, 37.422, results[0].Latitude, 0.0001)
+	assert.InDelta(t, -122.084, results[0].Longitude, 0.0001)
+	assert.Equal(t, "google", results[0].Provider)
+	assert.Equal(t, "https://maps.google.com/?cid=123", results[0].MapURL)
+
+	// Here test searchGooglePlaces behavior with unconfigured key
+	viper.Set("plugins.maps.google_api_key", "")
+	_, err = plugin.searchGooglePlaces("googleplex")
+	assert.Error(t, err, "should return error when API key is missing")
+}
+
+func TestQueryLengthBounding(t *testing.T) {
+	fakePhotonEmpty := `{"type":"FeatureCollection","features":[]}`
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		q := r.URL.Query().Get("q")
+		assert.LessOrEqual(t, len(q), 200, "query parameter sent upstream must be capped at 200 characters")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(fakePhotonEmpty))
+	}))
+	defer server.Close()
+
+	viper.Set("plugins.maps.geocoder_provider", "photon")
+	viper.Set("plugins.maps.photon_url", server.URL)
+	defer func() {
+		viper.Set("plugins.maps.geocoder_provider", "")
+		viper.Set("plugins.maps.photon_url", "")
+	}()
+
+	plugin := &MapsPlugin{
+		httpClient:    server.Client(),
+		cache:         newGeocodeCache(time.Minute, time.Minute, 100),
+		photonLimiter: newRateLimiter(time.Millisecond),
+	}
+	defer plugin.cache.Close()
+
+	e := echo.New()
+	veryLongQuery := strings.Repeat("a", 500)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/geocode?q="+veryLongQuery, nil)
+	rec := httptest.NewRecorder()
+	c := e.NewContext(req, rec)
+
+	err := plugin.handleGeocodeSearch(c)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec.Code)
+}
+
+func TestUnauthorizedAccess(t *testing.T) {
+	plugin := &MapsPlugin{}
+	e := echo.New()
+	plugin.RegisterAuthenticatedRoutes(e.Group("/api/v1/plugins"))
+
+	// Request without user context
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/tasks/1/location", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/plugins/maps/tasks/1/location", strings.NewReader(`{"latitude":10,"longitude":20,"display_name":"x"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/plugins/maps/tasks/1/location", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/projects/1/locations", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusUnauthorized, rec.Code)
+}
+
+func TestReadOnlyAccessForbidden(t *testing.T) {
+	s := db.NewSession()
+	_ = s.Table("users").Sync2(&user.User{})
+	_ = s.Table("projects").Sync2(&models.Project{})
+	_ = s.Table("tasks").Sync2(&models.Task{})
+	_ = s.Table("task_locations").Sync2(&TaskLocation{})
+	_ = s.Table("users_projects").Sync2(&models.ProjectUser{})
+
+	owner := &user.User{ID: 101, Username: "projowner2"}
+	readOnlyUser := &user.User{ID: 102, Username: "readonlyuser"}
+	_, _ = s.Table("users").Insert(owner)
+	_, _ = s.Table("users").Insert(readOnlyUser)
+
+	p := &models.Project{ID: 8888, Title: "RO Project", OwnerID: owner.ID}
+	_, _ = s.Table("projects").Insert(p)
+
+	task := &models.Task{ID: 88881, ProjectID: p.ID, Title: "RO Task"}
+	_, _ = s.Table("tasks").Insert(task)
+
+	loc := &TaskLocation{
+		TaskID:      task.ID,
+		ProjectID:   p.ID,
+		DisplayName: "RO Task Location",
+		Latitude:    12.34,
+		Longitude:   56.78,
+		Provider:    "photon",
+	}
+	_, _ = s.Table("task_locations").Insert(loc)
+
+	// Give readOnlyUser read-only permission (PermissionRead)
+	upRO := &models.ProjectUser{UserID: readOnlyUser.ID, ProjectID: p.ID, Permission: models.PermissionRead}
+	_, _ = s.Table("users_projects").Insert(upRO)
+
+	_, _ = s.Table("project_ancestors").Insert(map[string]interface{}{
+		"project_id":  p.ID,
+		"ancestor_id": p.ID,
+		"depth":       0,
+	})
+
+	_ = s.Commit()
+	s.Close()
+
+	defer func() {
+		sClean := db.NewSession()
+		defer sClean.Close()
+		_, _ = sClean.Table("tasks").Where("id = ?", 88881).Delete(&models.Task{})
+		_, _ = sClean.Table("task_locations").Where("task_id = ?", 88881).Delete(&TaskLocation{})
+		_, _ = sClean.Table("users_projects").Where("project_id = ?", 8888).Delete(&models.ProjectUser{})
+		_, _ = sClean.Table("project_ancestors").Where("project_id = ?", 8888).Delete(map[string]interface{}{})
+		_, _ = sClean.Table("projects").Where("id = ?", 8888).Delete(&models.Project{})
+		_, _ = sClean.Table("users").Where("id IN (?, ?)", 101, 102).Delete(&user.User{})
+		_ = sClean.Commit()
+	}()
+
+	plugin := &MapsPlugin{}
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.Set("api_user", readOnlyUser)
+			return next(c)
+		}
+	})
+	plugin.RegisterAuthenticatedRoutes(e.Group("/api/v1/plugins"))
+
+	// 1. Read-only user CAN read task location
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/tasks/88881/location", nil)
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// 2. Read-only user CAN list project locations
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/projects/8888/locations", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// 3. Read-only user CANNOT update location (403 Forbidden)
+	req = httptest.NewRequest(http.MethodPost, "/api/v1/plugins/maps/tasks/88881/location", strings.NewReader(`{"latitude":15.0,"longitude":25.0,"display_name":"Hacked"}`))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+
+	// 4. Read-only user CANNOT delete location (403 Forbidden)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/plugins/maps/tasks/88881/location", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusForbidden, rec.Code)
+}
+
+func TestLocationCRUDLifecycle(t *testing.T) {
+	s := db.NewSession()
+	_ = s.Table("users").Sync2(&user.User{})
+	_ = s.Table("projects").Sync2(&models.Project{})
+	_ = s.Table("tasks").Sync2(&models.Task{})
+	_ = s.Table("task_locations").Sync2(&TaskLocation{})
+	_ = s.Table("users_projects").Sync2(&models.ProjectUser{})
+
+	u := &user.User{ID: 201, Username: "cruduser"}
+	_, _ = s.Table("users").Insert(u)
+
+	p := &models.Project{ID: 9991, Title: "CRUD Project", OwnerID: u.ID}
+	_, _ = s.Table("projects").Insert(p)
+
+	task := &models.Task{ID: 99911, ProjectID: p.ID, Title: "CRUD Task"}
+	_, _ = s.Table("tasks").Insert(task)
+
+	up := &models.ProjectUser{UserID: u.ID, ProjectID: p.ID, Permission: models.PermissionAdmin}
+	_, _ = s.Table("users_projects").Insert(up)
+
+	_, _ = s.Table("project_ancestors").Insert(map[string]interface{}{
+		"project_id":  p.ID,
+		"ancestor_id": p.ID,
+		"depth":       0,
+	})
+
+	_ = s.Commit()
+	s.Close()
+
+	defer func() {
+		sClean := db.NewSession()
+		defer sClean.Close()
+		_, _ = sClean.Table("tasks").Where("id = ?", 99911).Delete(&models.Task{})
+		_, _ = sClean.Table("task_locations").Where("task_id = ?", 99911).Delete(&TaskLocation{})
+		_, _ = sClean.Table("users_projects").Where("project_id = ?", 9991).Delete(&models.ProjectUser{})
+		_, _ = sClean.Table("project_ancestors").Where("project_id = ?", 9991).Delete(map[string]interface{}{})
+		_, _ = sClean.Table("projects").Where("id = ?", 9991).Delete(&models.Project{})
+		_, _ = sClean.Table("users").Where("id = ?", 201).Delete(&user.User{})
+		_ = sClean.Commit()
+	}()
+
+	plugin := &MapsPlugin{}
+	e := echo.New()
+	e.Use(func(next echo.HandlerFunc) echo.HandlerFunc {
+		return func(c *echo.Context) error {
+			c.Set("api_user", u)
+			return next(c)
+		}
+	})
+	plugin.RegisterAuthenticatedRoutes(e.Group("/api/v1/plugins"))
+
+	// Step 1: Create location (POST)
+	body := `{"display_name":"Eiffel Tower","latitude":48.8584,"longitude":2.2945,"provider":"photon"}`
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/plugins/maps/tasks/99911/location", strings.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var created TaskLocation
+	err := json.Unmarshal(rec.Body.Bytes(), &created)
+	require.NoError(t, err)
+	assert.Equal(t, "Eiffel Tower", created.DisplayName)
+	assert.InDelta(t, 48.8584, created.Latitude, 0.0001)
+
+	// Step 2: Read location (GET)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/tasks/99911/location", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var fetched TaskLocation
+	err = json.Unmarshal(rec.Body.Bytes(), &fetched)
+	require.NoError(t, err)
+	assert.Equal(t, created.DisplayName, fetched.DisplayName)
+
+	// Step 3: Update location (PUT)
+	updateBody := `{"display_name":"Louvre Museum","latitude":48.8606,"longitude":2.3376,"provider":"photon"}`
+	req = httptest.NewRequest(http.MethodPut, "/api/v1/plugins/maps/tasks/99911/location", strings.NewReader(updateBody))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	var updated TaskLocation
+	err = json.Unmarshal(rec.Body.Bytes(), &updated)
+	require.NoError(t, err)
+	assert.Equal(t, "Louvre Museum", updated.DisplayName)
+	assert.InDelta(t, 48.8606, updated.Latitude, 0.0001)
+
+	// Step 4: Delete location (DELETE)
+	req = httptest.NewRequest(http.MethodDelete, "/api/v1/plugins/maps/tasks/99911/location", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+
+	// Step 5: Read again after delete (GET returns 200 with null body)
+	req = httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/tasks/99911/location", nil)
+	rec = httptest.NewRecorder()
+	e.ServeHTTP(rec, req)
+	assert.Equal(t, http.StatusOK, rec.Code)
+	assert.Equal(t, "null\n", rec.Body.String())
+}
+
+func TestRateLimiterContextCancellation(t *testing.T) {
+	limiter := newRateLimiter(5 * time.Second)
+	// Primer request to set lastRequest
+	err := limiter.Wait(context.Background())
+	require.NoError(t, err)
+
+	// Second request with cancelled context should abort immediately
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel() // cancel immediately
+
+	start := time.Now()
+	err = limiter.Wait(ctx)
+	duration := time.Since(start)
+
+	assert.ErrorIs(t, err, context.Canceled)
+	assert.Less(t, duration, 200*time.Millisecond, "cancelled rate limiter wait should not block for full interval")
+}
+
+func TestCacheDoubleCheckRace(t *testing.T) {
+	cache := newGeocodeCache(100*time.Millisecond, 50*time.Millisecond, 10)
+	defer cache.Close()
+
+	sampleA := []GeocodeSuggestion{{PlaceID: "A", DisplayName: "Location A"}}
+	sampleB := []GeocodeSuggestion{{PlaceID: "B", DisplayName: "Location B"}}
+
+	cache.Set("p", "key", sampleA)
+	// Force entry to be expired
+	cache.Lock()
+	cache.entries["p:key"] = cacheEntry{
+		suggestions: sampleA,
+		expiresAt:   time.Now().Add(-1 * time.Second),
+	}
+	cache.Unlock()
+
+	// Concurrently refresh with fresh entry
+	cache.Set("p", "key", sampleB)
+
+	// Get should find the fresh entry B, not delete it
+	got, found := cache.Get("p", "key")
+	assert.True(t, found)
+	require.Len(t, got, 1)
+	assert.Equal(t, "Location B", got[0].DisplayName)
+}
+
+func TestPluginMigrationLifecycle(t *testing.T) {
+	x, err := db.CreateTestEngine()
+	require.NoError(t, err)
+
+	plugin := &MapsPlugin{}
+	migrations := plugin.Migrations()
+	require.Len(t, migrations, 1)
+
+	m := migrations[0]
+	assert.Equal(t, "20261018000001-create-task-locations-table", m.ID)
+
+	// Test Rollback initially (drop table if exists)
+	err = m.Rollback(x)
+	require.NoError(t, err)
+
+	// Test Migrate
+	err = m.Migrate(x)
+	require.NoError(t, err)
+
+	// Verify table exists by inserting a record
+	loc := &TaskLocation{
+		TaskID:      12345,
+		ProjectID:   67890,
+		DisplayName: "Migration Test Place",
+		Latitude:    12.34,
+		Longitude:   56.78,
+		Provider:    "photon",
+	}
+	_, err = x.Table("task_locations").Insert(loc)
+	require.NoError(t, err)
+
+	// Verify row is present
+	var count int64
+	count, err = x.Table("task_locations").Where("task_id = ?", 12345).Count()
+	require.NoError(t, err)
+	assert.Equal(t, int64(1), count)
+
+	// Test Rollback drops table
+	err = m.Rollback(x)
+	require.NoError(t, err)
+
+	// Verify table no longer exists
+	has, err := x.IsTableExist("task_locations")
+	require.NoError(t, err)
+	assert.False(t, has, "task_locations table should have been dropped by rollback")
+}
+
+
 

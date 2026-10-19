@@ -4,9 +4,11 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -65,6 +67,13 @@ type MapsConfigResponse struct {
 	SupportsAutocomplete bool   `json:"supports_autocomplete"`
 }
 
+func isValidCoordinate(lat, lon float64) bool {
+	if math.IsNaN(lat) || math.IsNaN(lon) || math.IsInf(lat, 0) || math.IsInf(lon, 0) {
+		return false
+	}
+	return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
+}
+
 type cacheEntry struct {
 	suggestions []GeocodeSuggestion
 	expiresAt   time.Time
@@ -72,15 +81,69 @@ type cacheEntry struct {
 
 type geocodeCache struct {
 	sync.RWMutex
-	entries map[string]cacheEntry
-	ttl     time.Duration
+	entries    map[string]cacheEntry
+	ttl        time.Duration
+	negTTL     time.Duration
+	maxEntries int
+	stopChan   chan struct{}
+	stopOnce   sync.Once
 }
 
-func newGeocodeCache(ttl time.Duration) *geocodeCache {
-	return &geocodeCache{
-		entries: make(map[string]cacheEntry),
-		ttl:     ttl,
+func newGeocodeCache(ttl, negTTL time.Duration, maxEntries int) *geocodeCache {
+	if maxEntries <= 0 {
+		maxEntries = 5000
 	}
+	if negTTL <= 0 {
+		negTTL = 5 * time.Minute
+	}
+	c := &geocodeCache{
+		entries:    make(map[string]cacheEntry),
+		ttl:        ttl,
+		negTTL:     negTTL,
+		maxEntries: maxEntries,
+		stopChan:   make(chan struct{}),
+	}
+	go c.runEvictionLoop(10 * time.Minute)
+	return c
+}
+
+func (c *geocodeCache) runEvictionLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			c.evictExpired()
+		case <-c.stopChan:
+			return
+		}
+	}
+}
+
+func (c *geocodeCache) evictExpired() {
+	now := time.Now()
+	c.Lock()
+	defer c.Unlock()
+	for k, v := range c.entries {
+		if now.After(v.expiresAt) {
+			delete(c.entries, k)
+		}
+	}
+}
+
+func (c *geocodeCache) isClosed() bool {
+	select {
+	case <-c.stopChan:
+		return true
+	default:
+		return false
+	}
+}
+
+func (c *geocodeCache) Close() {
+	c.stopOnce.Do(func() {
+		close(c.stopChan)
+	})
 }
 
 func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
@@ -94,7 +157,9 @@ func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
 	}
 	if time.Now().After(entry.expiresAt) {
 		c.Lock()
-		delete(c.entries, key)
+		if current, ok := c.entries[key]; ok && time.Now().After(current.expiresAt) {
+			delete(c.entries, key)
+		}
 		c.Unlock()
 		return nil, false
 	}
@@ -103,12 +168,42 @@ func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
 
 func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion) {
 	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
+	now := time.Now()
+	entryTTL := c.ttl
+	if len(suggestions) == 0 {
+		entryTTL = c.negTTL
+	}
+
 	c.Lock()
+	defer c.Unlock()
+
+	if _, exists := c.entries[key]; exists {
+		c.entries[key] = cacheEntry{
+			suggestions: suggestions,
+			expiresAt:   now.Add(entryTTL),
+		}
+		return
+	}
+
+	if len(c.entries) >= c.maxEntries {
+		for k, v := range c.entries {
+			if now.After(v.expiresAt) {
+				delete(c.entries, k)
+			}
+		}
+	}
+
+	if len(c.entries) >= c.maxEntries {
+		for k := range c.entries {
+			delete(c.entries, k)
+			break
+		}
+	}
+
 	c.entries[key] = cacheEntry{
 		suggestions: suggestions,
-		expiresAt:   time.Now().Add(c.ttl),
+		expiresAt:   now.Add(entryTTL),
 	}
-	c.Unlock()
 }
 
 type rateLimiter struct {
@@ -123,28 +218,55 @@ func newRateLimiter(interval time.Duration) *rateLimiter {
 	}
 }
 
-func (r *rateLimiter) Wait() {
+func (r *rateLimiter) Wait(ctx ...context.Context) error {
 	r.Lock()
 	defer r.Unlock()
+
+	var reqCtx context.Context
+	if len(ctx) > 0 {
+		reqCtx = ctx[0]
+	}
 
 	now := time.Now()
 	elapsed := now.Sub(r.lastRequest)
 	if elapsed < r.interval {
-		time.Sleep(r.interval - elapsed)
+		waitDuration := r.interval - elapsed
+		if reqCtx != nil {
+			timer := time.NewTimer(waitDuration)
+			select {
+			case <-timer.C:
+			case <-reqCtx.Done():
+				timer.Stop()
+				return reqCtx.Err()
+			}
+		} else {
+			time.Sleep(waitDuration)
+		}
 	}
 	r.lastRequest = time.Now()
+	return nil
 }
+
+const (
+	maxResponseBodySize = 1024 * 1024 // 1 MB
+	maxErrorBodySize    = 16 * 1024   // 16 KB
+	maxGeocodeQueryLen  = 200
+)
 
 type MapsPlugin struct {
 	httpClient       *http.Client
 	cache            *geocodeCache
 	nominatimLimiter *rateLimiter
+	photonLimiter    *rateLimiter
+	googleLimiter    *rateLimiter
 }
 
 var singleton = &MapsPlugin{
 	httpClient:       &http.Client{Timeout: 8 * time.Second},
-	cache:            newGeocodeCache(24 * time.Hour),
+	cache:            newGeocodeCache(24*time.Hour, 5*time.Minute, 5000),
 	nominatimLimiter: newRateLimiter(1050 * time.Millisecond),
+	photonLimiter:    newRateLimiter(100 * time.Millisecond),
+	googleLimiter:    newRateLimiter(100 * time.Millisecond),
 }
 
 func NewPlugin() plugins.Plugin {
@@ -168,6 +290,9 @@ func (p *MapsPlugin) Version() string {
 }
 
 func (p *MapsPlugin) Init() error {
+	if p.cache == nil || p.cache.isClosed() {
+		p.cache = newGeocodeCache(24*time.Hour, 5*time.Minute, 5000)
+	}
 	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
 	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
 	events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
@@ -177,6 +302,9 @@ func (p *MapsPlugin) Init() error {
 
 func (p *MapsPlugin) Shutdown() error {
 	log.Infof("Vikunja Maps plugin shutting down")
+	if p.cache != nil {
+		p.cache.Close()
+	}
 	return nil
 }
 
@@ -209,24 +337,6 @@ func (p *MapsPlugin) Migrations() []*xormigrate.Migration {
 				return tx.DropTables("task_locations")
 			},
 		},
-		{
-			ID:          "20261018000002-add-default-map-views-to-existing-projects",
-			Description: "Ensure all existing projects have a default Map view",
-			Migrate: func(tx *xorm.Engine) error {
-				_, err := tx.Exec(`
-					INSERT INTO project_views (title, project_id, view_kind, position, created, updated)
-					SELECT 'Map', p.id, 4, 500, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-					FROM projects p
-					WHERE NOT EXISTS (
-						SELECT 1 FROM project_views pv WHERE pv.project_id = p.id AND pv.view_kind = 4
-					)
-				`)
-				return err
-			},
-			Rollback: func(tx *xorm.Engine) error {
-				return nil
-			},
-		},
 	}
 }
 
@@ -254,10 +364,13 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 	if len(query) < 2 {
 		return c.JSON(http.StatusOK, []GeocodeSuggestion{})
 	}
+	if len(query) > maxGeocodeQueryLen {
+		query = query[:maxGeocodeQueryLen]
+	}
 
 	provider := p.getProvider()
 
-	// Check 24-hour cache first
+	// Check cache first
 	if cached, found := p.cache.Get(provider, query); found {
 		return c.JSON(http.StatusOK, cached)
 	}
@@ -267,13 +380,15 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 		err     error
 	)
 
+	reqCtx := c.Request().Context()
+
 	switch provider {
 	case "google":
-		results, err = p.searchGooglePlaces(query)
+		results, err = p.searchGooglePlaces(query, reqCtx)
 	case "nominatim":
-		results, err = p.searchNominatim(query)
+		results, err = p.searchNominatim(query, reqCtx)
 	default: // "photon"
-		results, err = p.searchPhoton(query)
+		results, err = p.searchPhoton(query, reqCtx)
 	}
 
 	if err != nil {
@@ -281,14 +396,24 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed: "+err.Error())
 	}
 
-	if len(results) > 0 {
-		p.cache.Set(provider, query, results)
-	}
+	// Cache both positive results and empty results (negative caching with shorter TTL)
+	p.cache.Set(provider, query, results)
 
 	return c.JSON(http.StatusOK, results)
 }
 
-func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
+func (p *MapsPlugin) searchPhoton(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
+	reqCtx := context.Background()
+	if len(ctx) > 0 && ctx[0] != nil {
+		reqCtx = ctx[0]
+	}
+
+	if p.photonLimiter != nil {
+		if err := p.photonLimiter.Wait(reqCtx); err != nil {
+			return nil, err
+		}
+	}
+
 	baseURL := viper.GetString("plugins.maps.photon_url")
 	if baseURL == "" {
 		baseURL = "https://photon.komoot.io"
@@ -302,7 +427,7 @@ func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
 	q.Set("limit", "6")
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -316,7 +441,7 @@ func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 		return nil, fmt.Errorf("photon returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -339,7 +464,7 @@ func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
 		} `json:"features"`
 	}
 
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&parsed); err != nil {
 		return nil, err
 	}
 
@@ -350,6 +475,10 @@ func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
 		}
 		lon := f.Geometry.Coordinates[0]
 		lat := f.Geometry.Coordinates[1]
+
+		if !isValidCoordinate(lat, lon) {
+			continue
+		}
 
 		displayName := strings.TrimSpace(f.Properties.Name)
 		var addressParts []string
@@ -399,16 +528,33 @@ func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
 	return suggestions, nil
 }
 
-func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, error) {
+func (p *MapsPlugin) searchGooglePlaces(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
+	reqCtx := context.Background()
+	if len(ctx) > 0 && ctx[0] != nil {
+		reqCtx = ctx[0]
+	}
+
+	if p.googleLimiter != nil {
+		if err := p.googleLimiter.Wait(reqCtx); err != nil {
+			return nil, err
+		}
+	}
+
 	apiKey := viper.GetString("plugins.maps.google_api_key")
 	if apiKey == "" {
 		return nil, fmt.Errorf("plugins.maps.google_api_key is not configured")
 	}
+
+	placesURL := viper.GetString("plugins.maps.google_places_url")
+	if placesURL == "" {
+		placesURL = "https://places.googleapis.com/v1/places:searchText"
+	}
+
 	reqBody, _ := json.Marshal(map[string]interface{}{
 		"textQuery":      query,
 		"maxResultCount": 6,
 	})
-	req, err := http.NewRequest("POST", "https://places.googleapis.com/v1/places:searchText", bytes.NewReader(reqBody))
+	req, err := http.NewRequestWithContext(reqCtx, "POST", placesURL, bytes.NewReader(reqBody))
 	if err != nil {
 		return nil, err
 	}
@@ -422,7 +568,7 @@ func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, erro
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode >= 300 {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 		return nil, fmt.Errorf("google places returned status %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -440,20 +586,26 @@ func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, erro
 			GoogleMapsURI string `json:"googleMapsUri"`
 		} `json:"places"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&parsed); err != nil {
 		return nil, err
 	}
 
 	suggestions := make([]GeocodeSuggestion, 0, len(parsed.Places))
 	for _, pl := range parsed.Places {
+		lat := pl.Location.Latitude
+		lon := pl.Location.Longitude
+		if !isValidCoordinate(lat, lon) {
+			continue
+		}
+
 		suggestions = append(suggestions, GeocodeSuggestion{
 			PlaceID:     pl.ID,
 			DisplayName: pl.DisplayName.Text,
 			Address:     pl.FormattedAddress,
-			Latitude:    pl.Location.Latitude,
-			Longitude:   pl.Location.Longitude,
-			Lat:         pl.Location.Latitude,
-			Lon:         pl.Location.Longitude,
+			Latitude:    lat,
+			Longitude:   lon,
+			Lat:         lat,
+			Lon:         lon,
 			Provider:    "google",
 			MapURL:      pl.GoogleMapsURI,
 		})
@@ -461,9 +613,18 @@ func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, erro
 	return suggestions, nil
 }
 
-func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) {
+func (p *MapsPlugin) searchNominatim(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
+	reqCtx := context.Background()
+	if len(ctx) > 0 && ctx[0] != nil {
+		reqCtx = ctx[0]
+	}
+
 	// Nominatim Usage Policy enforcement: Rate limit to 1 req/s
-	p.nominatimLimiter.Wait()
+	if p.nominatimLimiter != nil {
+		if err := p.nominatimLimiter.Wait(reqCtx); err != nil {
+			return nil, err
+		}
+	}
 
 	baseURL := viper.GetString("plugins.maps.nominatim_url")
 	if baseURL == "" {
@@ -484,7 +645,7 @@ func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) 
 	q.Set("limit", "6")
 	u.RawQuery = q.Encode()
 
-	req, err := http.NewRequest("GET", u.String(), nil)
+	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
 	if err != nil {
 		return nil, err
 	}
@@ -499,7 +660,7 @@ func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) 
 	defer resp.Body.Close()
 
 	if resp.StatusCode != http.StatusOK {
-		bodyBytes, _ := io.ReadAll(resp.Body)
+		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 		return nil, fmt.Errorf("nominatim returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 	}
 
@@ -510,14 +671,17 @@ func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) 
 		Lat         string `json:"lat"`
 		Lon         string `json:"lon"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&raw); err != nil {
 		return nil, err
 	}
 
 	suggestions := make([]GeocodeSuggestion, 0, len(raw))
 	for _, item := range raw {
-		lat, _ := strconv.ParseFloat(item.Lat, 64)
-		lon, _ := strconv.ParseFloat(item.Lon, 64)
+		lat, errLat := strconv.ParseFloat(item.Lat, 64)
+		lon, errLon := strconv.ParseFloat(item.Lon, 64)
+		if errLat != nil || errLon != nil || !isValidCoordinate(lat, lon) {
+			continue // skip invalid or malformed provider coordinates
+		}
 		label := item.Name
 		if label == "" {
 			label = strings.Split(item.DisplayName, ",")[0]
@@ -591,7 +755,7 @@ func (p *MapsPlugin) handleUpsertTaskLocation(c *echo.Context) error {
 	if strings.TrimSpace(input.Address) == "" {
 		input.Address = input.DisplayName
 	}
-	if strings.TrimSpace(input.DisplayName) == "" || input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
+	if strings.TrimSpace(input.DisplayName) == "" || !isValidCoordinate(input.Latitude, input.Longitude) {
 		return echo.NewHTTPError(http.StatusBadRequest, "Valid display_name or title and coordinates are required")
 	}
 

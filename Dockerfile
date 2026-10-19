@@ -15,7 +15,7 @@ RUN git clone --depth 1 --branch ${VIKUNJA_REF} https://github.com/go-vikunja/vi
 # Apply maps patch and copy plugin
 COPY vikunja-core-maps.patch /tmp/vikunja-core-maps.patch
 RUN git apply /tmp/vikunja-core-maps.patch
-COPY plugins/maps/ /app/plugins/maps/
+COPY plugins/maps/main.go /app/plugins/maps/main.go
 
 WORKDIR /app/frontend
 RUN npm install -g corepack && corepack enable && \

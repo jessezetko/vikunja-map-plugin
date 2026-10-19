@@ -1,5 +1,5 @@
 diff --git a/.gitignore b/.gitignore
-index 469ce5eb9..15c237a42 100644
+index 469ce5e..15c237a 100644
 --- a/.gitignore
 +++ b/.gitignore
 @@ -34,6 +34,7 @@ mage_output_file.go
@@ -11,7 +11,7 @@ index 469ce5eb9..15c237a42 100644
  
  # pnpm
 diff --git a/frontend/package.json b/frontend/package.json
-index 3af3a2819..55a3563dc 100644
+index 3af3a28..55a3563 100644
 --- a/frontend/package.json
 +++ b/frontend/package.json
 @@ -90,6 +90,7 @@
@@ -31,7 +31,7 @@ index 3af3a2819..55a3563dc 100644
      "@types/sortablejs": "1.15.9",
      "@types/ws": "8.18.1",
 diff --git a/frontend/pnpm-lock.yaml b/frontend/pnpm-lock.yaml
-index 93db59763..83bf92968 100644
+index bec42a0..97d99b2 100644
 --- a/frontend/pnpm-lock.yaml
 +++ b/frontend/pnpm-lock.yaml
 @@ -139,6 +139,9 @@ importers:
@@ -74,7 +74,7 @@ index 93db59763..83bf92968 100644
    '@types/linkify-it@5.0.0':
      resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
  
-@@ -4840,6 +4852,9 @@ packages:
+@@ -4836,6 +4848,9 @@ packages:
    launch-editor@2.14.1:
      resolution: {integrity: sha512-QWBrQsMpH7gPr965dsKD/3cKWiNoTjpATQf++Xq63N6sKRGMwlVXz41O1IZTMfZQgBctD/K5Zt06+/I6pP6+HA==}
  
@@ -84,7 +84,7 @@ index 93db59763..83bf92968 100644
    leven@3.1.0:
      resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
      engines: {node: '>=6'}
-@@ -9712,6 +9727,8 @@ snapshots:
+@@ -9704,6 +9719,8 @@ snapshots:
  
    '@types/gensync@1.0.5': {}
  
@@ -93,7 +93,7 @@ index 93db59763..83bf92968 100644
    '@types/hast@3.0.5':
      dependencies:
        '@types/unist': 3.0.3
-@@ -9726,6 +9743,10 @@ snapshots:
+@@ -9718,6 +9735,10 @@ snapshots:
      dependencies:
        '@types/node': 24.13.4
  
@@ -104,7 +104,7 @@ index 93db59763..83bf92968 100644
    '@types/linkify-it@5.0.0': {}
  
    '@types/markdown-it@14.1.2':
-@@ -12062,6 +12083,8 @@ snapshots:
+@@ -12052,6 +12073,8 @@ snapshots:
        picocolors: 1.1.1
        shell-quote: 1.10.0
  
@@ -115,10 +115,10 @@ index 93db59763..83bf92968 100644
    levn@0.4.1:
 diff --git a/frontend/src/client/queries/maps.ts b/frontend/src/client/queries/maps.ts
 new file mode 100644
-index 000000000..f7d1b5cea
+index 0000000..7343ec8
 --- /dev/null
 +++ b/frontend/src/client/queries/maps.ts
-@@ -0,0 +1,150 @@
+@@ -0,0 +1,149 @@
 +import {getApiRootUrl} from '@/helpers/apiUrl'
 +import {getToken} from '@/helpers/auth'
 +
@@ -261,16 +261,15 @@ index 000000000..f7d1b5cea
 +			credentials: 'include',
 +		})
 +		if (!res.ok) {
-+			return {provider: 'photon', supports_autocomplete: true}
++			return {provider: 'photon', supports_autocomplete: false}
 +		}
 +		return await res.json()
 +	} catch {
-+		return {provider: 'photon', supports_autocomplete: true}
++		return {provider: 'photon', supports_autocomplete: false}
 +	}
 +}
-+
 diff --git a/frontend/src/components/misc/Icon.ts b/frontend/src/components/misc/Icon.ts
-index 35f2923bb..a1810d4cd 100644
+index 35f2923..a1810d4 100644
 --- a/frontend/src/components/misc/Icon.ts
 +++ b/frontend/src/components/misc/Icon.ts
 @@ -51,6 +51,8 @@ import {
@@ -292,7 +291,7 @@ index 35f2923bb..a1810d4cd 100644
  // overwriting the wrong types
  export default FontAwesomeIcon as unknown as FontAwesomeIconFixedTypes
 diff --git a/frontend/src/components/project/ProjectWrapper.vue b/frontend/src/components/project/ProjectWrapper.vue
-index c290f769d..d54bc92fa 100644
+index c290f76..d54bc92 100644
 --- a/frontend/src/components/project/ProjectWrapper.vue
 +++ b/frontend/src/components/project/ProjectWrapper.vue
 @@ -162,6 +162,8 @@ function getViewTitle(view: ProjectView) {
@@ -306,7 +305,7 @@ index c290f769d..d54bc92fa 100644
  	return view.title ?? ''
 diff --git a/frontend/src/components/project/views/ProjectViewMap.vue b/frontend/src/components/project/views/ProjectViewMap.vue
 new file mode 100644
-index 000000000..2ea446b97
+index 0000000..2ea446b
 --- /dev/null
 +++ b/frontend/src/components/project/views/ProjectViewMap.vue
 @@ -0,0 +1,691 @@
@@ -1002,7 +1001,7 @@ index 000000000..2ea446b97
 +}
 +</style>
 diff --git a/frontend/src/components/project/views/ViewEditForm.vue b/frontend/src/components/project/views/ViewEditForm.vue
-index 529c9b6a1..3b689a058 100644
+index 529c9b6..3b689a0 100644
 --- a/frontend/src/components/project/views/ViewEditForm.vue
 +++ b/frontend/src/components/project/views/ViewEditForm.vue
 @@ -236,6 +236,9 @@ function handleBubbleSave(event: FocusEvent) {
@@ -1017,7 +1016,7 @@ index 529c9b6a1..3b689a058 100644
  			</template>
 diff --git a/frontend/src/components/tasks/partials/LocationSearchField.vue b/frontend/src/components/tasks/partials/LocationSearchField.vue
 new file mode 100644
-index 000000000..6a287e4d2
+index 0000000..9eb2d49
 --- /dev/null
 +++ b/frontend/src/components/tasks/partials/LocationSearchField.vue
 @@ -0,0 +1,487 @@
@@ -1181,7 +1180,7 @@ index 000000000..6a287e4d2
 +const showDropdown = ref(false)
 +const isEditing = ref(false)
 +const inputRef = ref<HTMLInputElement | null>(null)
-+const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: true})
++const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: false})
 +
 +const supportsAutocomplete = computed(() => mapsConfig.value.supports_autocomplete)
 +
@@ -1357,7 +1356,7 @@ index 000000000..6a287e4d2
 +	try {
 +		mapsConfig.value = await getMapsConfig()
 +	} catch {
-+		mapsConfig.value = {provider: 'photon', supports_autocomplete: true}
++		mapsConfig.value = {provider: 'photon', supports_autocomplete: false}
 +	}
 +	loadLocation()
 +})
@@ -1509,7 +1508,7 @@ index 000000000..6a287e4d2
 +}
 +</style>
 diff --git a/frontend/src/constants/projectView.ts b/frontend/src/constants/projectView.ts
-index 3ac101720..915d716e5 100644
+index 3ac1017..915d716 100644
 --- a/frontend/src/constants/projectView.ts
 +++ b/frontend/src/constants/projectView.ts
 @@ -1,12 +1,13 @@
@@ -1528,7 +1527,7 @@ index 3ac101720..915d716e5 100644
  
  export const DEFAULT_PROJECT_VIEW_SETTINGS = {
 diff --git a/frontend/src/i18n/lang/en.json b/frontend/src/i18n/lang/en.json
-index 272c28b0c..870efc0ad 100644
+index cfc63af..1850f69 100644
 --- a/frontend/src/i18n/lang/en.json
 +++ b/frontend/src/i18n/lang/en.json
 @@ -611,6 +611,13 @@
@@ -1584,7 +1583,7 @@ index 272c28b0c..870efc0ad 100644
        "createdBy": "Created By",
        "description": "Description",
 diff --git a/frontend/src/views/project/ProjectView.vue b/frontend/src/views/project/ProjectView.vue
-index c5235797d..cc876fe2d 100644
+index c523579..cc876fe 100644
 --- a/frontend/src/views/project/ProjectView.vue
 +++ b/frontend/src/views/project/ProjectView.vue
 @@ -13,8 +13,9 @@ import ProjectList from '@/components/project/views/ProjectList.vue'
@@ -1610,7 +1609,7 @@ index c5235797d..cc876fe2d 100644
 +	/>
  </template>
 diff --git a/frontend/src/views/tasks/TaskDetailView.vue b/frontend/src/views/tasks/TaskDetailView.vue
-index dab1144ec..1ff2c2fa5 100644
+index dab1144..1ff2c2f 100644
 --- a/frontend/src/views/tasks/TaskDetailView.vue
 +++ b/frontend/src/views/tasks/TaskDetailView.vue
 @@ -316,6 +316,27 @@
@@ -1703,7 +1702,7 @@ index dab1144ec..1ff2c2fa5 100644
  	percentDone: null,
  	priority: null,
 diff --git a/pkg/db/db.go b/pkg/db/db.go
-index 415d14c5b..36d85f809 100644
+index 415d14c..36d85f8 100644
 --- a/pkg/db/db.go
 +++ b/pkg/db/db.go
 @@ -219,12 +219,14 @@ func getPostgreSQLConnectionString(dbHost, dbUser, dbPasswd, dbName, dbSchema, d
@@ -1726,7 +1725,7 @@ index 415d14c5b..36d85f809 100644
  	// Pin search_path so raw SQL resolves to the same schema as xorm-built statements (#3118).
  	// Quoting preserves case; public stays so extension operators (e.g. ParadeDB's |||) keep resolving.
 diff --git a/pkg/models/project_view.go b/pkg/models/project_view.go
-index 5134e0e65..3091dca92 100644
+index 5134e0e..c2e4496 100644
 --- a/pkg/models/project_view.go
 +++ b/pkg/models/project_view.go
 @@ -44,6 +44,8 @@ func (p *ProjectViewKind) MarshalJSON() ([]byte, error) {
@@ -1775,35 +1774,11 @@ index 5134e0e65..3091dca92 100644
  
  	// The filter query to match tasks by. Check out https://vikunja.io/docs/filters for a full explanation.
  	Filter *TaskCollection `xorm:"json null default null" query:"filter" json:"filter" doc:"The filter query used to match tasks shown in this view. See https://vikunja.io/docs/filters."`
-@@ -864,11 +869,23 @@ func CreateDefaultViewsForProject(s *xorm.Session, project *Project, a web.Auth,
- 		return
- 	}
- 
-+	mapView := &ProjectView{
-+		ProjectID: project.ID,
-+		Title:     "Map",
-+		ViewKind:  ProjectViewKindMap,
-+		Position:  500,
-+	}
-+	err = createProjectView(s, mapView, a, createBacklogBucket, true)
-+	if err != nil {
-+		return
-+	}
-+
- 	project.Views = []*ProjectView{
- 		list,
- 		gantt,
- 		table,
- 		kanban,
-+		mapView,
- 	}
- 
- 	return
 diff --git a/pkg/plugins/yaegi/loader_test.go b/pkg/plugins/yaegi/loader_test.go
-index 964c6382f..d39caf13d 100644
+index 964c638..35979cb 100644
 --- a/pkg/plugins/yaegi/loader_test.go
 +++ b/pkg/plugins/yaegi/loader_test.go
-@@ -80,3 +80,46 @@ func TestExamplePluginIsExcludedFromModuleBuild(t *testing.T) {
+@@ -80,3 +80,45 @@ func TestExamplePluginIsExcludedFromModuleBuild(t *testing.T) {
  		t.Error("example plugin main.go is part of the module build, expected it to be excluded via //go:build ignore")
  	}
  }
@@ -1849,9 +1824,8 @@ index 964c6382f..d39caf13d 100644
 +		t.Errorf("expected at least 1 migration, got 0")
 +	}
 +}
-+
 diff --git a/pkg/routes/static.go b/pkg/routes/static.go
-index a2b01b71d..3ee3e389f 100644
+index a2b01b7..3ee3e38 100644
 --- a/pkg/routes/static.go
 +++ b/pkg/routes/static.go
 @@ -49,6 +49,7 @@ const (
@@ -1877,19 +1851,21 @@ index a2b01b71d..3ee3e389f 100644
  			return err
 diff --git a/plugins/maps/main.go b/plugins/maps/main.go
 new file mode 100644
-index 000000000..616b1f16a
+index 0000000..948bf75
 --- /dev/null
 +++ b/plugins/maps/main.go
-@@ -0,0 +1,800 @@
+@@ -0,0 +1,964 @@
 +//go:build ignore || test
 +
 +package main
 +
 +import (
 +	"bytes"
++	"context"
 +	"encoding/json"
 +	"fmt"
 +	"io"
++	"math"
 +	"net/http"
 +	"net/url"
 +	"strconv"
@@ -1948,6 +1924,13 @@ index 000000000..616b1f16a
 +	SupportsAutocomplete bool   `json:"supports_autocomplete"`
 +}
 +
++func isValidCoordinate(lat, lon float64) bool {
++	if math.IsNaN(lat) || math.IsNaN(lon) || math.IsInf(lat, 0) || math.IsInf(lon, 0) {
++		return false
++	}
++	return lat >= -90 && lat <= 90 && lon >= -180 && lon <= 180
++}
++
 +type cacheEntry struct {
 +	suggestions []GeocodeSuggestion
 +	expiresAt   time.Time
@@ -1955,15 +1938,69 @@ index 000000000..616b1f16a
 +
 +type geocodeCache struct {
 +	sync.RWMutex
-+	entries map[string]cacheEntry
-+	ttl     time.Duration
++	entries    map[string]cacheEntry
++	ttl        time.Duration
++	negTTL     time.Duration
++	maxEntries int
++	stopChan   chan struct{}
++	stopOnce   sync.Once
 +}
 +
-+func newGeocodeCache(ttl time.Duration) *geocodeCache {
-+	return &geocodeCache{
-+		entries: make(map[string]cacheEntry),
-+		ttl:     ttl,
++func newGeocodeCache(ttl, negTTL time.Duration, maxEntries int) *geocodeCache {
++	if maxEntries <= 0 {
++		maxEntries = 5000
 +	}
++	if negTTL <= 0 {
++		negTTL = 5 * time.Minute
++	}
++	c := &geocodeCache{
++		entries:    make(map[string]cacheEntry),
++		ttl:        ttl,
++		negTTL:     negTTL,
++		maxEntries: maxEntries,
++		stopChan:   make(chan struct{}),
++	}
++	go c.runEvictionLoop(10 * time.Minute)
++	return c
++}
++
++func (c *geocodeCache) runEvictionLoop(interval time.Duration) {
++	ticker := time.NewTicker(interval)
++	defer ticker.Stop()
++	for {
++		select {
++		case <-ticker.C:
++			c.evictExpired()
++		case <-c.stopChan:
++			return
++		}
++	}
++}
++
++func (c *geocodeCache) evictExpired() {
++	now := time.Now()
++	c.Lock()
++	defer c.Unlock()
++	for k, v := range c.entries {
++		if now.After(v.expiresAt) {
++			delete(c.entries, k)
++		}
++	}
++}
++
++func (c *geocodeCache) isClosed() bool {
++	select {
++	case <-c.stopChan:
++		return true
++	default:
++		return false
++	}
++}
++
++func (c *geocodeCache) Close() {
++	c.stopOnce.Do(func() {
++		close(c.stopChan)
++	})
 +}
 +
 +func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
@@ -1977,7 +2014,9 @@ index 000000000..616b1f16a
 +	}
 +	if time.Now().After(entry.expiresAt) {
 +		c.Lock()
-+		delete(c.entries, key)
++		if current, ok := c.entries[key]; ok && time.Now().After(current.expiresAt) {
++			delete(c.entries, key)
++		}
 +		c.Unlock()
 +		return nil, false
 +	}
@@ -1986,12 +2025,42 @@ index 000000000..616b1f16a
 +
 +func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion) {
 +	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
++	now := time.Now()
++	entryTTL := c.ttl
++	if len(suggestions) == 0 {
++		entryTTL = c.negTTL
++	}
++
 +	c.Lock()
++	defer c.Unlock()
++
++	if _, exists := c.entries[key]; exists {
++		c.entries[key] = cacheEntry{
++			suggestions: suggestions,
++			expiresAt:   now.Add(entryTTL),
++		}
++		return
++	}
++
++	if len(c.entries) >= c.maxEntries {
++		for k, v := range c.entries {
++			if now.After(v.expiresAt) {
++				delete(c.entries, k)
++			}
++		}
++	}
++
++	if len(c.entries) >= c.maxEntries {
++		for k := range c.entries {
++			delete(c.entries, k)
++			break
++		}
++	}
++
 +	c.entries[key] = cacheEntry{
 +		suggestions: suggestions,
-+		expiresAt:   time.Now().Add(c.ttl),
++		expiresAt:   now.Add(entryTTL),
 +	}
-+	c.Unlock()
 +}
 +
 +type rateLimiter struct {
@@ -2006,28 +2075,55 @@ index 000000000..616b1f16a
 +	}
 +}
 +
-+func (r *rateLimiter) Wait() {
++func (r *rateLimiter) Wait(ctx ...context.Context) error {
 +	r.Lock()
 +	defer r.Unlock()
++
++	var reqCtx context.Context
++	if len(ctx) > 0 {
++		reqCtx = ctx[0]
++	}
 +
 +	now := time.Now()
 +	elapsed := now.Sub(r.lastRequest)
 +	if elapsed < r.interval {
-+		time.Sleep(r.interval - elapsed)
++		waitDuration := r.interval - elapsed
++		if reqCtx != nil {
++			timer := time.NewTimer(waitDuration)
++			select {
++			case <-timer.C:
++			case <-reqCtx.Done():
++				timer.Stop()
++				return reqCtx.Err()
++			}
++		} else {
++			time.Sleep(waitDuration)
++		}
 +	}
 +	r.lastRequest = time.Now()
++	return nil
 +}
++
++const (
++	maxResponseBodySize = 1024 * 1024 // 1 MB
++	maxErrorBodySize    = 16 * 1024   // 16 KB
++	maxGeocodeQueryLen  = 200
++)
 +
 +type MapsPlugin struct {
 +	httpClient       *http.Client
 +	cache            *geocodeCache
 +	nominatimLimiter *rateLimiter
++	photonLimiter    *rateLimiter
++	googleLimiter    *rateLimiter
 +}
 +
 +var singleton = &MapsPlugin{
 +	httpClient:       &http.Client{Timeout: 8 * time.Second},
-+	cache:            newGeocodeCache(24 * time.Hour),
++	cache:            newGeocodeCache(24*time.Hour, 5*time.Minute, 5000),
 +	nominatimLimiter: newRateLimiter(1050 * time.Millisecond),
++	photonLimiter:    newRateLimiter(100 * time.Millisecond),
++	googleLimiter:    newRateLimiter(100 * time.Millisecond),
 +}
 +
 +func NewPlugin() plugins.Plugin {
@@ -2051,6 +2147,9 @@ index 000000000..616b1f16a
 +}
 +
 +func (p *MapsPlugin) Init() error {
++	if p.cache == nil || p.cache.isClosed() {
++		p.cache = newGeocodeCache(24*time.Hour, 5*time.Minute, 5000)
++	}
 +	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
 +	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
 +	events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
@@ -2060,6 +2159,9 @@ index 000000000..616b1f16a
 +
 +func (p *MapsPlugin) Shutdown() error {
 +	log.Infof("Vikunja Maps plugin shutting down")
++	if p.cache != nil {
++		p.cache.Close()
++	}
 +	return nil
 +}
 +
@@ -2092,24 +2194,6 @@ index 000000000..616b1f16a
 +				return tx.DropTables("task_locations")
 +			},
 +		},
-+		{
-+			ID:          "20261018000002-add-default-map-views-to-existing-projects",
-+			Description: "Ensure all existing projects have a default Map view",
-+			Migrate: func(tx *xorm.Engine) error {
-+				_, err := tx.Exec(`
-+					INSERT INTO project_views (title, project_id, view_kind, position, created, updated)
-+					SELECT 'Map', p.id, 4, 500, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP
-+					FROM projects p
-+					WHERE NOT EXISTS (
-+						SELECT 1 FROM project_views pv WHERE pv.project_id = p.id AND pv.view_kind = 4
-+					)
-+				`)
-+				return err
-+			},
-+			Rollback: func(tx *xorm.Engine) error {
-+				return nil
-+			},
-+		},
 +	}
 +}
 +
@@ -2137,10 +2221,13 @@ index 000000000..616b1f16a
 +	if len(query) < 2 {
 +		return c.JSON(http.StatusOK, []GeocodeSuggestion{})
 +	}
++	if len(query) > maxGeocodeQueryLen {
++		query = query[:maxGeocodeQueryLen]
++	}
 +
 +	provider := p.getProvider()
 +
-+	// Check 24-hour cache first
++	// Check cache first
 +	if cached, found := p.cache.Get(provider, query); found {
 +		return c.JSON(http.StatusOK, cached)
 +	}
@@ -2150,13 +2237,15 @@ index 000000000..616b1f16a
 +		err     error
 +	)
 +
++	reqCtx := c.Request().Context()
++
 +	switch provider {
 +	case "google":
-+		results, err = p.searchGooglePlaces(query)
++		results, err = p.searchGooglePlaces(query, reqCtx)
 +	case "nominatim":
-+		results, err = p.searchNominatim(query)
++		results, err = p.searchNominatim(query, reqCtx)
 +	default: // "photon"
-+		results, err = p.searchPhoton(query)
++		results, err = p.searchPhoton(query, reqCtx)
 +	}
 +
 +	if err != nil {
@@ -2164,14 +2253,24 @@ index 000000000..616b1f16a
 +		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed: "+err.Error())
 +	}
 +
-+	if len(results) > 0 {
-+		p.cache.Set(provider, query, results)
-+	}
++	// Cache both positive results and empty results (negative caching with shorter TTL)
++	p.cache.Set(provider, query, results)
 +
 +	return c.JSON(http.StatusOK, results)
 +}
 +
-+func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
++func (p *MapsPlugin) searchPhoton(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
++	reqCtx := context.Background()
++	if len(ctx) > 0 && ctx[0] != nil {
++		reqCtx = ctx[0]
++	}
++
++	if p.photonLimiter != nil {
++		if err := p.photonLimiter.Wait(reqCtx); err != nil {
++			return nil, err
++		}
++	}
++
 +	baseURL := viper.GetString("plugins.maps.photon_url")
 +	if baseURL == "" {
 +		baseURL = "https://photon.komoot.io"
@@ -2185,7 +2284,7 @@ index 000000000..616b1f16a
 +	q.Set("limit", "6")
 +	u.RawQuery = q.Encode()
 +
-+	req, err := http.NewRequest("GET", u.String(), nil)
++	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
 +	if err != nil {
 +		return nil, err
 +	}
@@ -2199,7 +2298,7 @@ index 000000000..616b1f16a
 +	defer resp.Body.Close()
 +
 +	if resp.StatusCode != http.StatusOK {
-+		bodyBytes, _ := io.ReadAll(resp.Body)
++		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 +		return nil, fmt.Errorf("photon returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 +	}
 +
@@ -2222,7 +2321,7 @@ index 000000000..616b1f16a
 +		} `json:"features"`
 +	}
 +
-+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
++	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&parsed); err != nil {
 +		return nil, err
 +	}
 +
@@ -2233,6 +2332,10 @@ index 000000000..616b1f16a
 +		}
 +		lon := f.Geometry.Coordinates[0]
 +		lat := f.Geometry.Coordinates[1]
++
++		if !isValidCoordinate(lat, lon) {
++			continue
++		}
 +
 +		displayName := strings.TrimSpace(f.Properties.Name)
 +		var addressParts []string
@@ -2282,16 +2385,33 @@ index 000000000..616b1f16a
 +	return suggestions, nil
 +}
 +
-+func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, error) {
++func (p *MapsPlugin) searchGooglePlaces(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
++	reqCtx := context.Background()
++	if len(ctx) > 0 && ctx[0] != nil {
++		reqCtx = ctx[0]
++	}
++
++	if p.googleLimiter != nil {
++		if err := p.googleLimiter.Wait(reqCtx); err != nil {
++			return nil, err
++		}
++	}
++
 +	apiKey := viper.GetString("plugins.maps.google_api_key")
 +	if apiKey == "" {
 +		return nil, fmt.Errorf("plugins.maps.google_api_key is not configured")
 +	}
++
++	placesURL := viper.GetString("plugins.maps.google_places_url")
++	if placesURL == "" {
++		placesURL = "https://places.googleapis.com/v1/places:searchText"
++	}
++
 +	reqBody, _ := json.Marshal(map[string]interface{}{
 +		"textQuery":      query,
 +		"maxResultCount": 6,
 +	})
-+	req, err := http.NewRequest("POST", "https://places.googleapis.com/v1/places:searchText", bytes.NewReader(reqBody))
++	req, err := http.NewRequestWithContext(reqCtx, "POST", placesURL, bytes.NewReader(reqBody))
 +	if err != nil {
 +		return nil, err
 +	}
@@ -2305,7 +2425,7 @@ index 000000000..616b1f16a
 +	}
 +	defer resp.Body.Close()
 +	if resp.StatusCode >= 300 {
-+		bodyBytes, _ := io.ReadAll(resp.Body)
++		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 +		return nil, fmt.Errorf("google places returned status %d: %s", resp.StatusCode, string(bodyBytes))
 +	}
 +
@@ -2323,20 +2443,26 @@ index 000000000..616b1f16a
 +			GoogleMapsURI string `json:"googleMapsUri"`
 +		} `json:"places"`
 +	}
-+	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
++	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&parsed); err != nil {
 +		return nil, err
 +	}
 +
 +	suggestions := make([]GeocodeSuggestion, 0, len(parsed.Places))
 +	for _, pl := range parsed.Places {
++		lat := pl.Location.Latitude
++		lon := pl.Location.Longitude
++		if !isValidCoordinate(lat, lon) {
++			continue
++		}
++
 +		suggestions = append(suggestions, GeocodeSuggestion{
 +			PlaceID:     pl.ID,
 +			DisplayName: pl.DisplayName.Text,
 +			Address:     pl.FormattedAddress,
-+			Latitude:    pl.Location.Latitude,
-+			Longitude:   pl.Location.Longitude,
-+			Lat:         pl.Location.Latitude,
-+			Lon:         pl.Location.Longitude,
++			Latitude:    lat,
++			Longitude:   lon,
++			Lat:         lat,
++			Lon:         lon,
 +			Provider:    "google",
 +			MapURL:      pl.GoogleMapsURI,
 +		})
@@ -2344,9 +2470,18 @@ index 000000000..616b1f16a
 +	return suggestions, nil
 +}
 +
-+func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) {
++func (p *MapsPlugin) searchNominatim(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
++	reqCtx := context.Background()
++	if len(ctx) > 0 && ctx[0] != nil {
++		reqCtx = ctx[0]
++	}
++
 +	// Nominatim Usage Policy enforcement: Rate limit to 1 req/s
-+	p.nominatimLimiter.Wait()
++	if p.nominatimLimiter != nil {
++		if err := p.nominatimLimiter.Wait(reqCtx); err != nil {
++			return nil, err
++		}
++	}
 +
 +	baseURL := viper.GetString("plugins.maps.nominatim_url")
 +	if baseURL == "" {
@@ -2367,7 +2502,7 @@ index 000000000..616b1f16a
 +	q.Set("limit", "6")
 +	u.RawQuery = q.Encode()
 +
-+	req, err := http.NewRequest("GET", u.String(), nil)
++	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
 +	if err != nil {
 +		return nil, err
 +	}
@@ -2382,7 +2517,7 @@ index 000000000..616b1f16a
 +	defer resp.Body.Close()
 +
 +	if resp.StatusCode != http.StatusOK {
-+		bodyBytes, _ := io.ReadAll(resp.Body)
++		bodyBytes, _ := io.ReadAll(io.LimitReader(resp.Body, maxErrorBodySize))
 +		return nil, fmt.Errorf("nominatim returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
 +	}
 +
@@ -2393,14 +2528,17 @@ index 000000000..616b1f16a
 +		Lat         string `json:"lat"`
 +		Lon         string `json:"lon"`
 +	}
-+	if err := json.NewDecoder(resp.Body).Decode(&raw); err != nil {
++	if err := json.NewDecoder(io.LimitReader(resp.Body, maxResponseBodySize)).Decode(&raw); err != nil {
 +		return nil, err
 +	}
 +
 +	suggestions := make([]GeocodeSuggestion, 0, len(raw))
 +	for _, item := range raw {
-+		lat, _ := strconv.ParseFloat(item.Lat, 64)
-+		lon, _ := strconv.ParseFloat(item.Lon, 64)
++		lat, errLat := strconv.ParseFloat(item.Lat, 64)
++		lon, errLon := strconv.ParseFloat(item.Lon, 64)
++		if errLat != nil || errLon != nil || !isValidCoordinate(lat, lon) {
++			continue // skip invalid or malformed provider coordinates
++		}
 +		label := item.Name
 +		if label == "" {
 +			label = strings.Split(item.DisplayName, ",")[0]
@@ -2474,7 +2612,7 @@ index 000000000..616b1f16a
 +	if strings.TrimSpace(input.Address) == "" {
 +		input.Address = input.DisplayName
 +	}
-+	if strings.TrimSpace(input.DisplayName) == "" || input.Latitude < -90 || input.Latitude > 90 || input.Longitude < -180 || input.Longitude > 180 {
++	if strings.TrimSpace(input.DisplayName) == "" || !isValidCoordinate(input.Latitude, input.Longitude) {
 +		return echo.NewHTTPError(http.StatusBadRequest, "Valid display_name or title and coordinates are required")
 +	}
 +
