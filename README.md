@@ -101,8 +101,9 @@ It is important to distinguish between **Map Tiles** and **Geocoding Providers**
 - **Map Tiles (Display)**: The raster image tiles displayed on the interactive map canvas. OpenStreetMap tiles (`https://tile.openstreetmap.org/`) are used by default with **zero API key required**. If `CARTO_BASEMAPS_API_KEY` is provided, CARTO Voyager and Dark Matter tiles are used instead.
 - **Geocoding Providers (Search & Autocomplete)**: The service that transforms search strings (e.g. "Eiffel Tower") into geographic coordinates (`latitude`, `longitude`).
   - **Photon** (`photon`): **Default**. Designed specifically for search-as-you-type. Free public instance hosted by Komoot (`https://photon.komoot.io`), or self-host your own via Docker (`docker run -d -p 2322:2322 komoot/photon`).
+    > **Note on International Locations & Localization**: Photon indexes OpenStreetMap data using the native language and local script of each region (for example, queries in Japan, Greece, or the Middle East will return results rendered in Japanese kanji/kana, Greek, or Arabic rather than transliterated English). If your workflow requires consistent English-transliterated results for non-Latin international regions or commercial-grade global address resolution, use the **Google Places** provider (`google`) with a `google_api_key`.
   - **Nominatim** (`nominatim`): Standard OSM Nominatim. Keystroke autocomplete is automatically disabled in the UI; users must press Enter or click "Search" to trigger queries, complying with OSMF usage policy.
-  - **Google Places** (`google`): High-precision Google Places New API. Requires `google_api_key`.
+  - **Google Places** (`google`): High-precision Google Places New API. Requires `google_api_key`. Ideal for consistent multi-language and English-localized global search.
 
 ### Docker Compose Environment Variables
 ```yaml
