@@ -36,21 +36,22 @@ To provide both the **Task Location field** and the **Map view tab**, this repos
 
 ## Installation Method 1: Docker (Recommended for Self-Hosters)
 
-**No Go or Node.js required on your host machine.** The included multi-stage `Dockerfile` clones Vikunja, applies the patch, installs Leaflet, and compiles the production container automatically.
+**Pre-built Docker images are automatically published on every release to the GitHub Container Registry (`ghcr.io/jessezetko/vikunja-map-plugin:latest`).** No Go or Node.js required on your host machine.
 
-### 1. Clone this repository
+### 1. Download `docker-compose.yml`
 ```bash
-git clone https://github.com/jessezetko/vikunja-map-plugin.git
-cd vikunja-map-plugin
+curl -O https://raw.githubusercontent.com/jessezetko/vikunja-map-plugin/main/docker-compose.example.yml
+mv docker-compose.example.yml docker-compose.yml
 ```
 
-### 2. Start with Docker Compose
+### 2. Start Vikunja
 ```bash
-cp docker-compose.example.yml docker-compose.yml
-docker compose up -d --build
+docker compose up -d
 ```
 
-Your custom Vikunja instance with the Maps plugin will be built and accessible at `http://localhost:3456`.
+Your custom Vikunja instance with the Maps plugin will be downloaded and accessible at `http://localhost:3456`.
+
+*(Optional: To build the container image yourself from source instead of pulling from GHCR, clone this repository and run `docker compose up -d --build`)*
 
 ---
 

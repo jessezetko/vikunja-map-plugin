@@ -1,9 +1,10 @@
 services:
   vikunja:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: vikunja-maps:latest
+    image: ghcr.io/jessezetko/vikunja-map-plugin:latest
+    # Or to build locally:
+    # build:
+    #   context: .
+    #   dockerfile: Dockerfile
     container_name: vikunja
     environment:
       VIKUNJA_SERVICE_PUBLICURL: http://localhost:3456
