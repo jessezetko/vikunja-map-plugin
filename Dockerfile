@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile to build Vikunja with the Maps & Location Plugin
 # No local Go or Node.js toolchain required on the host.
 
-ARG VIKUNJA_REF=main
+ARG VIKUNJA_REF=v2.7.0
 
 # Stage 1: Build Frontend with Leaflet and Maps Components
 FROM node:24-alpine AS frontend-builder
@@ -9,7 +9,7 @@ WORKDIR /app
 ARG VIKUNJA_REF
 RUN apk add --no-cache git
 
-# Clone Vikunja base source
+# Clone Vikunja base source pinned to stable release
 RUN git clone --depth 1 --branch ${VIKUNJA_REF} https://github.com/go-vikunja/vikunja.git .
 
 # Apply maps patch and copy plugin
@@ -19,13 +19,11 @@ COPY plugins/maps/ /app/plugins/maps/
 
 WORKDIR /app/frontend
 RUN npm install -g corepack && corepack enable && \
-    pnpm install && \
-    pnpm add leaflet@^1.9.4 && \
-    pnpm add -D @types/leaflet@^1.9.14 && \
+    pnpm install --frozen-lockfile && \
     pnpm run build
 
 # Stage 2: Build Static Vikunja Go Binary
-FROM golang:1.24-alpine AS backend-builder
+FROM golang:1.27-alpine AS backend-builder
 WORKDIR /app
 RUN apk add --no-cache git build-base
 COPY --from=frontend-builder /app /app

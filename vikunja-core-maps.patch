@@ -115,10 +115,10 @@ index 93db59763..83bf92968 100644
    levn@0.4.1:
 diff --git a/frontend/src/client/queries/maps.ts b/frontend/src/client/queries/maps.ts
 new file mode 100644
-index 000000000..17ae3a2eb
+index 000000000..f7d1b5cea
 --- /dev/null
 +++ b/frontend/src/client/queries/maps.ts
-@@ -0,0 +1,126 @@
+@@ -0,0 +1,150 @@
 +import {getApiRootUrl} from '@/helpers/apiUrl'
 +import {getToken} from '@/helpers/auth'
 +
@@ -243,8 +243,32 @@ index 000000000..17ae3a2eb
 +	if (!res.ok) {
 +		throw new Error(`Failed to fetch project locations: ${res.statusText}`)
 +	}
-+	return res.json()
++	const data = await res.json()
++	return Array.isArray(data) ? data : []
 +}
++
++export interface MapsConfig {
++	provider: string
++	supports_autocomplete: boolean
++}
++
++export async function getMapsConfig(): Promise<MapsConfig> {
++	try {
++		const rootUrl = getApiRootUrl()
++		const url = `${rootUrl}/api/v1/plugins/maps/config`
++		const res = await fetch(url, {
++			headers: getAuthHeaders(),
++			credentials: 'include',
++		})
++		if (!res.ok) {
++			return {provider: 'photon', supports_autocomplete: true}
++		}
++		return await res.json()
++	} catch {
++		return {provider: 'photon', supports_autocomplete: true}
++	}
++}
++
 diff --git a/frontend/src/components/misc/Icon.ts b/frontend/src/components/misc/Icon.ts
 index 35f2923bb..a1810d4cd 100644
 --- a/frontend/src/components/misc/Icon.ts
@@ -282,10 +306,10 @@ index c290f769d..d54bc92fa 100644
  	return view.title ?? ''
 diff --git a/frontend/src/components/project/views/ProjectViewMap.vue b/frontend/src/components/project/views/ProjectViewMap.vue
 new file mode 100644
-index 000000000..e2d2e8cb9
+index 000000000..2ea446b97
 --- /dev/null
 +++ b/frontend/src/components/project/views/ProjectViewMap.vue
-@@ -0,0 +1,688 @@
+@@ -0,0 +1,691 @@
 +<template>
 +	<ProjectWrapper
 +		class="project-map-view-wrapper"
@@ -427,6 +451,7 @@ index 000000000..e2d2e8cb9
 +
 +<script setup lang="ts">
 +import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
++import {useI18n} from 'vue-i18n'
 +import {useResizeObserver} from '@vueuse/core'
 +import {useRouter} from 'vue-router'
 +import L from 'leaflet'
@@ -436,6 +461,7 @@ index 000000000..e2d2e8cb9
 +import Icon from '@/components/misc/Icon'
 +import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
 +import {getProjectLocations, type TaskLocation} from '@/client/queries/maps'
++import {error} from '@/message'
 +import {useTaskList} from '@/composables/useTaskList'
 +import {useColorScheme} from '@/composables/useColorScheme'
 +
@@ -448,6 +474,7 @@ index 000000000..e2d2e8cb9
 +})
 +
 +const router = useRouter()
++const {t} = useI18n()
 +const {isDark} = useColorScheme()
 +const isMobileDrawerOpen = ref(false)
 +
@@ -532,7 +559,7 @@ index 000000000..e2d2e8cb9
 +	if (!props.projectId) return
 +	try {
 +		isLoadingLocations.value = true
-+		const list = await getProjectLocations(props.projectId)
++		const list = (await getProjectLocations(props.projectId)) || []
 +		const map = new Map<number, TaskLocation>()
 +		for (const loc of list) {
 +			map.set(loc.task_id, loc)
@@ -540,7 +567,7 @@ index 000000000..e2d2e8cb9
 +		locationsByTaskId.value = map
 +		renderMarkers()
 +	} catch {
-+		// Ignore error
++		error(t('project.map.loadError'))
 +	} finally {
 +		isLoadingLocations.value = false
 +	}
@@ -990,10 +1017,10 @@ index 529c9b6a1..3b689a058 100644
  			</template>
 diff --git a/frontend/src/components/tasks/partials/LocationSearchField.vue b/frontend/src/components/tasks/partials/LocationSearchField.vue
 new file mode 100644
-index 000000000..1bd59dd21
+index 000000000..6a287e4d2
 --- /dev/null
 +++ b/frontend/src/components/tasks/partials/LocationSearchField.vue
-@@ -0,0 +1,395 @@
+@@ -0,0 +1,487 @@
 +<template>
 +	<div class="task-location-field">
 +		<!-- Saved Location: Compact tag matching other Vikunja tags/labels -->
@@ -1038,26 +1065,42 @@ index 000000000..1bd59dd21
 +			v-else
 +			class="location-autocomplete"
 +		>
-+			<div
-+				class="control has-icons-left"
-+				:class="{'is-loading': isSearching}"
-+			>
-+				<input
-+					ref="inputRef"
-+					v-model="searchQuery"
-+					type="text"
-+					class="input is-small"
-+					:disabled="disabled"
-+					:placeholder="$t('task.location.searchPlaceholder')"
-+					autocomplete="off"
-+					@input="onSearchInput"
-+					@keydown.esc="cancelEditing"
-+					@focus="onSearchInput"
-+					@blur="onBlur"
++			<div class="field has-addons is-marginless">
++				<div
++					class="control has-icons-left is-expanded"
++					:class="{'is-loading': isSearching}"
 +				>
-+				<span class="icon is-small is-left">
-+					<Icon icon="map-marker-alt" />
-+				</span>
++					<input
++						ref="inputRef"
++						v-model="searchQuery"
++						type="text"
++						class="input is-small"
++						:disabled="disabled"
++						:placeholder="$t('task.location.searchPlaceholder')"
++						autocomplete="off"
++						@input="onSearchInput"
++						@keydown.enter.prevent="executeSearch"
++						@keydown.esc="cancelEditing"
++						@focus="onFocus"
++						@blur="onBlur"
++					>
++					<span class="icon is-small is-left">
++						<Icon icon="map-marker-alt" />
++					</span>
++				</div>
++				<div
++					v-if="!supportsAutocomplete"
++					class="control"
++				>
++					<BaseButton
++						size="small"
++						variant="primary"
++						:disabled="disabled || !searchQuery.trim()"
++						@click.prevent="executeSearch"
++					>
++						{{ $t('task.location.searchButton') }}
++					</BaseButton>
++				</div>
 +			</div>
 +
 +			<ul
@@ -1100,20 +1143,22 @@ index 000000000..1bd59dd21
 +</template>
 +
 +<script setup lang="ts">
-+import {computed, nextTick, onMounted, ref, watch} from 'vue'
++import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 +import {useI18n} from 'vue-i18n'
 +
 +import BaseButton from '@/components/base/BaseButton.vue'
 +import Icon from '@/components/misc/Icon'
 +import {
 +	deleteTaskLocation,
++	getMapsConfig,
 +	getTaskLocation,
 +	saveTaskLocation,
 +	searchLocations,
 +	type GeocodeResult,
++	type MapsConfig,
 +	type TaskLocation,
 +} from '@/client/queries/maps'
-+import {success} from '@/message'
++import {error, success} from '@/message'
 +
 +const props = withDefaults(defineProps<{
 +	taskId: number
@@ -1136,8 +1181,12 @@ index 000000000..1bd59dd21
 +const showDropdown = ref(false)
 +const isEditing = ref(false)
 +const inputRef = ref<HTMLInputElement | null>(null)
++const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: true})
++
++const supportsAutocomplete = computed(() => mapsConfig.value.supports_autocomplete)
 +
 +let debounceTimer: ReturnType<typeof setTimeout> | null = null
++let abortController: AbortController | null = null
 +
 +const mapUrl = computed(() => {
 +	if (!savedLocation.value) return ''
@@ -1151,11 +1200,12 @@ index 000000000..1bd59dd21
 +		savedLocation.value = await getTaskLocation(props.taskId)
 +	} catch {
 +		savedLocation.value = null
++		error(t('task.location.loadError'))
 +	}
 +	emit('updated', savedLocation.value)
 +}
 +
-+function onSearchInput() {
++async function executeSearch() {
 +	if (debounceTimer) clearTimeout(debounceTimer)
 +	const q = searchQuery.value.trim()
 +	if (q.length < 2) {
@@ -1163,17 +1213,58 @@ index 000000000..1bd59dd21
 +		showDropdown.value = false
 +		return
 +	}
++
++	if (abortController) {
++		abortController.abort()
++	}
++	const currentAbort = new AbortController()
++	abortController = currentAbort
++
 +	isSearching.value = true
 +	showDropdown.value = true
-+	debounceTimer = setTimeout(async () => {
-+		try {
-+			suggestions.value = await searchLocations(q)
-+		} catch {
++	try {
++		const results = await searchLocations(q, currentAbort.signal)
++		if (abortController === currentAbort) {
++			suggestions.value = results
++		}
++	} catch (e: unknown) {
++		if ((e instanceof DOMException && e.name === 'AbortError') || (e as Error)?.name === 'AbortError' || currentAbort.signal.aborted) {
++			return
++		}
++		if (abortController === currentAbort) {
 +			suggestions.value = []
-+		} finally {
++			error(t('task.location.searchError'))
++		}
++	} finally {
++		if (abortController === currentAbort) {
 +			isSearching.value = false
 +		}
-+	}, 350)
++	}
++}
++
++function onSearchInput() {
++	if (!supportsAutocomplete.value) {
++		// Public Nominatim compliance: autocomplete-as-you-type strictly prohibited.
++		return
++	}
++	if (debounceTimer) clearTimeout(debounceTimer)
++	const q = searchQuery.value.trim()
++	if (q.length < 3) {
++		suggestions.value = []
++		showDropdown.value = false
++		return
++	}
++	isSearching.value = true
++	showDropdown.value = true
++	debounceTimer = setTimeout(() => {
++		executeSearch()
++	}, 400)
++}
++
++function onFocus() {
++	if (supportsAutocomplete.value && searchQuery.value.trim().length >= 3 && suggestions.value.length > 0) {
++		showDropdown.value = true
++	}
 +}
 +
 +async function selectSuggestion(item: GeocodeResult) {
@@ -1198,7 +1289,7 @@ index 000000000..1bd59dd21
 +		emit('updated', saved)
 +		success(t('task.location.saved'))
 +	} catch {
-+		// Ignore or handle error
++		error(t('task.location.saveError'))
 +	}
 +}
 +
@@ -1211,7 +1302,7 @@ index 000000000..1bd59dd21
 +		emit('cleared')
 +		success(t('task.location.removed'))
 +	} catch {
-+		// Ignore
++		error(t('task.location.deleteError'))
 +	}
 +}
 +
@@ -1225,6 +1316,14 @@ index 000000000..1bd59dd21
 +}
 +
 +function cancelEditing() {
++	if (abortController) {
++		abortController.abort()
++		abortController = null
++	}
++	if (debounceTimer) {
++		clearTimeout(debounceTimer)
++		debounceTimer = null
++	}
 +	isEditing.value = false
 +	showDropdown.value = false
 +	suggestions.value = []
@@ -1254,8 +1353,24 @@ index 000000000..1bd59dd21
 +	loadLocation()
 +})
 +
-+onMounted(() => {
++onMounted(async () => {
++	try {
++		mapsConfig.value = await getMapsConfig()
++	} catch {
++		mapsConfig.value = {provider: 'photon', supports_autocomplete: true}
++	}
 +	loadLocation()
++})
++
++onBeforeUnmount(() => {
++	if (debounceTimer) {
++		clearTimeout(debounceTimer)
++		debounceTimer = null
++	}
++	if (abortController) {
++		abortController.abort()
++		abortController = null
++	}
 +})
 +</script>
 +
@@ -1320,6 +1435,10 @@ index 000000000..1bd59dd21
 +.location-autocomplete {
 +	position: relative;
 +	inline-size: 100%;
++}
++
++.is-marginless {
++	margin-bottom: 0 !important;
 +}
 +
 +.location-suggestions-menu {
@@ -1409,10 +1528,10 @@ index 3ac101720..915d716e5 100644
  
  export const DEFAULT_PROJECT_VIEW_SETTINGS = {
 diff --git a/frontend/src/i18n/lang/en.json b/frontend/src/i18n/lang/en.json
-index 272c28b0c..a656c8b32 100644
+index 272c28b0c..870efc0ad 100644
 --- a/frontend/src/i18n/lang/en.json
 +++ b/frontend/src/i18n/lang/en.json
-@@ -611,6 +611,12 @@
+@@ -611,6 +611,13 @@
        "bucketLimitReached": "You have reached the bucket limit. Remove tasks or increase the limit to add new tasks.",
        "bucketOptions": "Bucket options"
      },
@@ -1420,29 +1539,35 @@ index 272c28b0c..a656c8b32 100644
 +      "title": "Map",
 +      "noLocations": "No tasks in this project have locations yet.",
 +      "fitAll": "Fit all pins",
-+      "loading": "Loading map locations…"
++      "loading": "Loading map locations…",
++      "loadError": "Failed to load map locations."
 +    },
      "pseudo": {
        "favorites": {
          "title": "Favorites"
-@@ -1085,6 +1091,16 @@
+@@ -1085,6 +1092,21 @@
      }
    },
    "task": {
 +    "location": {
 +      "title": "Location",
 +      "searchPlaceholder": "Search for an address or place…",
++      "searchButton": "Search",
 +      "noResults": "No locations found",
 +      "searching": "Searching locations…",
 +      "remove": "Remove location",
 +      "viewOnMap": "View on OpenStreetMap",
 +      "saved": "Location saved successfully",
-+      "removed": "Location removed"
++      "removed": "Location removed",
++      "saveError": "Failed to save location.",
++      "deleteError": "Failed to delete location.",
++      "searchError": "Location search failed.",
++      "loadError": "Failed to load location."
 +    },
      "new": "Create a task",
      "createSuccess": "The task was successfully created.",
      "bulkCreateUnexpectedResponse": "The server returned an unexpected number of created tasks.",
-@@ -1161,6 +1177,7 @@
+@@ -1161,6 +1183,7 @@
          "moveProject": "Move",
          "duplicate": "Duplicate",
          "color": "Set Color",
@@ -1450,7 +1575,7 @@ index 272c28b0c..a656c8b32 100644
          "delete": "Delete",
          "favorite": "Add to Favorites",
          "unfavorite": "Remove from Favorites"
-@@ -1169,6 +1186,7 @@
+@@ -1169,6 +1192,7 @@
      "attributes": {
        "assignees": "Assignees",
        "color": "Color",
@@ -1729,11 +1854,11 @@ index a2b01b71d..3ee3e389f 100644
  			return err
 diff --git a/plugins/maps/main.go b/plugins/maps/main.go
 new file mode 100644
-index 000000000..15212ceeb
+index 000000000..616b1f16a
 --- /dev/null
 +++ b/plugins/maps/main.go
-@@ -0,0 +1,511 @@
-+//go:build ignore
+@@ -0,0 +1,800 @@
++//go:build ignore || test
 +
 +package main
 +
@@ -1746,6 +1871,7 @@ index 000000000..15212ceeb
 +	"net/url"
 +	"strconv"
 +	"strings"
++	"sync"
 +	"time"
 +
 +	"code.vikunja.io/api/pkg/db"
@@ -1772,7 +1898,7 @@ index 000000000..15212ceeb
 +	Latitude    float64   `xorm:"double not null" json:"latitude"`
 +	Longitude   float64   `xorm:"double not null" json:"longitude"`
 +	PlaceID     string    `xorm:"varchar(255) null" json:"place_id"`
-+	Provider    string    `xorm:"varchar(50) not null default 'nominatim'" json:"provider"`
++	Provider    string    `xorm:"varchar(50) not null default 'photon'" json:"provider"`
 +	MapURL      string    `xorm:"varchar(1000) null" json:"map_url"`
 +	Created     time.Time `xorm:"created not null" json:"created"`
 +	Updated     time.Time `xorm:"updated not null" json:"updated"`
@@ -1794,12 +1920,91 @@ index 000000000..15212ceeb
 +	MapURL      string  `json:"map_url"`
 +}
 +
++type MapsConfigResponse struct {
++	Provider            string `json:"provider"`
++	SupportsAutocomplete bool   `json:"supports_autocomplete"`
++}
++
++type cacheEntry struct {
++	suggestions []GeocodeSuggestion
++	expiresAt   time.Time
++}
++
++type geocodeCache struct {
++	sync.RWMutex
++	entries map[string]cacheEntry
++	ttl     time.Duration
++}
++
++func newGeocodeCache(ttl time.Duration) *geocodeCache {
++	return &geocodeCache{
++		entries: make(map[string]cacheEntry),
++		ttl:     ttl,
++	}
++}
++
++func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
++	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
++	c.RLock()
++	entry, exists := c.entries[key]
++	c.RUnlock()
++
++	if !exists {
++		return nil, false
++	}
++	if time.Now().After(entry.expiresAt) {
++		c.Lock()
++		delete(c.entries, key)
++		c.Unlock()
++		return nil, false
++	}
++	return entry.suggestions, true
++}
++
++func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion) {
++	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
++	c.Lock()
++	c.entries[key] = cacheEntry{
++		suggestions: suggestions,
++		expiresAt:   time.Now().Add(c.ttl),
++	}
++	c.Unlock()
++}
++
++type rateLimiter struct {
++	sync.Mutex
++	lastRequest time.Time
++	interval    time.Duration
++}
++
++func newRateLimiter(interval time.Duration) *rateLimiter {
++	return &rateLimiter{
++		interval: interval,
++	}
++}
++
++func (r *rateLimiter) Wait() {
++	r.Lock()
++	defer r.Unlock()
++
++	now := time.Now()
++	elapsed := now.Sub(r.lastRequest)
++	if elapsed < r.interval {
++		time.Sleep(r.interval - elapsed)
++	}
++	r.lastRequest = time.Now()
++}
++
 +type MapsPlugin struct {
-+	httpClient *http.Client
++	httpClient       *http.Client
++	cache            *geocodeCache
++	nominatimLimiter *rateLimiter
 +}
 +
 +var singleton = &MapsPlugin{
-+	httpClient: &http.Client{Timeout: 8 * time.Second},
++	httpClient:       &http.Client{Timeout: 8 * time.Second},
++	cache:            newGeocodeCache(24 * time.Hour),
++	nominatimLimiter: newRateLimiter(1050 * time.Millisecond),
 +}
 +
 +func NewPlugin() plugins.Plugin {
@@ -1824,6 +2029,8 @@ index 000000000..15212ceeb
 +
 +func (p *MapsPlugin) Init() error {
 +	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
++	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
++	events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
 +	log.Infof("Vikunja Maps plugin initialized (provider=%s)", p.getProvider())
 +	return nil
 +}
@@ -1841,10 +2048,13 @@ index 000000000..15212ceeb
 +	if prov == "nominatim" {
 +		return "nominatim"
 +	}
++	if prov == "photon" {
++		return "photon"
++	}
 +	if viper.GetString("plugins.maps.google_api_key") != "" {
 +		return "google"
 +	}
-+	return "nominatim"
++	return "photon"
 +}
 +
 +func (p *MapsPlugin) Migrations() []*xormigrate.Migration {
@@ -1882,12 +2092,21 @@ index 000000000..15212ceeb
 +
 +func (p *MapsPlugin) RegisterAuthenticatedRoutes(g *echo.Group) {
 +	mapsGroup := g.Group("/maps")
++	mapsGroup.GET("/config", p.handleGetConfig)
 +	mapsGroup.GET("/geocode", p.handleGeocodeSearch)
 +	mapsGroup.GET("/tasks/:taskID/location", p.handleGetTaskLocation)
 +	mapsGroup.POST("/tasks/:taskID/location", p.handleUpsertTaskLocation)
 +	mapsGroup.PUT("/tasks/:taskID/location", p.handleUpsertTaskLocation)
 +	mapsGroup.DELETE("/tasks/:taskID/location", p.handleDeleteTaskLocation)
 +	mapsGroup.GET("/projects/:projectID/locations", p.handleListProjectLocations)
++}
++
++func (p *MapsPlugin) handleGetConfig(c *echo.Context) error {
++	prov := p.getProvider()
++	return c.JSON(http.StatusOK, MapsConfigResponse{
++		Provider:            prov,
++		SupportsAutocomplete: prov != "nominatim",
++	})
 +}
 +
 +func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
@@ -1897,40 +2116,147 @@ index 000000000..15212ceeb
 +	}
 +
 +	provider := p.getProvider()
-+	if provider == "google" {
-+		results, err := p.searchGooglePlaces(query)
-+		if err == nil && len(results) > 0 {
-+			return c.JSON(http.StatusOK, results)
-+		}
-+		if err != nil {
-+			log.Warningf("Google Places search failed, falling back to Nominatim: %v", err)
-+		}
-+		nomResults, nomErr := p.searchNominatim(query)
-+		if nomErr == nil {
-+			return c.JSON(http.StatusOK, nomResults)
-+		}
-+		log.Errorf("Both Google Places and Nominatim failed: %v / %v", err, nomErr)
-+		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed")
++
++	// Check 24-hour cache first
++	if cached, found := p.cache.Get(provider, query); found {
++		return c.JSON(http.StatusOK, cached)
 +	}
 +
-+	results, err := p.searchNominatim(query)
-+	if err == nil && len(results) > 0 {
-+		return c.JSON(http.StatusOK, results)
++	var (
++		results []GeocodeSuggestion
++		err     error
++	)
++
++	switch provider {
++	case "google":
++		results, err = p.searchGooglePlaces(query)
++	case "nominatim":
++		results, err = p.searchNominatim(query)
++	default: // "photon"
++		results, err = p.searchPhoton(query)
 +	}
++
 +	if err != nil {
-+		log.Warningf("Nominatim search failed: %v", err)
-+	}
-+	if viper.GetString("plugins.maps.google_api_key") != "" {
-+		gResults, gErr := p.searchGooglePlaces(query)
-+		if gErr == nil {
-+			return c.JSON(http.StatusOK, gResults)
-+		}
-+		log.Errorf("Fallback to Google Places also failed: %v", gErr)
-+	}
-+	if err != nil {
++		log.Errorf("Geocode search error with provider %s: %v", provider, err)
 +		return echo.NewHTTPError(http.StatusBadGateway, "Location search failed: "+err.Error())
 +	}
++
++	if len(results) > 0 {
++		p.cache.Set(provider, query, results)
++	}
++
 +	return c.JSON(http.StatusOK, results)
++}
++
++func (p *MapsPlugin) searchPhoton(query string) ([]GeocodeSuggestion, error) {
++	baseURL := viper.GetString("plugins.maps.photon_url")
++	if baseURL == "" {
++		baseURL = "https://photon.komoot.io"
++	}
++	u, err := url.Parse(strings.TrimRight(baseURL, "/") + "/api/")
++	if err != nil {
++		return nil, err
++	}
++	q := u.Query()
++	q.Set("q", query)
++	q.Set("limit", "6")
++	u.RawQuery = q.Encode()
++
++	req, err := http.NewRequest("GET", u.String(), nil)
++	if err != nil {
++		return nil, err
++	}
++	req.Header.Set("User-Agent", "Vikunja-Maps-Plugin/1.0 (+https://github.com/jessezetko/vikunja-map-plugin)")
++	req.Header.Set("Accept", "application/json")
++
++	resp, err := p.httpClient.Do(req)
++	if err != nil {
++		return nil, err
++	}
++	defer resp.Body.Close()
++
++	if resp.StatusCode != http.StatusOK {
++		bodyBytes, _ := io.ReadAll(resp.Body)
++		return nil, fmt.Errorf("photon returned HTTP %d: %s", resp.StatusCode, string(bodyBytes))
++	}
++
++	var parsed struct {
++		Features []struct {
++			Geometry struct {
++				Coordinates []float64 `json:"coordinates"` // [lon, lat]
++			} `json:"geometry"`
++			Properties struct {
++				OsmID       int64  `json:"osm_id"`
++				OsmType     string `json:"osm_type"`
++				Name        string `json:"name"`
++				Street      string `json:"street"`
++				Housenumber string `json:"housenumber"`
++				Postcode    string `json:"postcode"`
++				City        string `json:"city"`
++				State       string `json:"state"`
++				Country     string `json:"country"`
++			} `json:"properties"`
++		} `json:"features"`
++	}
++
++	if err := json.NewDecoder(resp.Body).Decode(&parsed); err != nil {
++		return nil, err
++	}
++
++	suggestions := make([]GeocodeSuggestion, 0, len(parsed.Features))
++	for _, f := range parsed.Features {
++		if len(f.Geometry.Coordinates) < 2 {
++			continue
++		}
++		lon := f.Geometry.Coordinates[0]
++		lat := f.Geometry.Coordinates[1]
++
++		displayName := strings.TrimSpace(f.Properties.Name)
++		var addressParts []string
++		if f.Properties.Street != "" {
++			streetAddr := f.Properties.Street
++			if f.Properties.Housenumber != "" {
++				streetAddr += " " + f.Properties.Housenumber
++			}
++			addressParts = append(addressParts, streetAddr)
++		}
++		if f.Properties.City != "" {
++			addressParts = append(addressParts, f.Properties.City)
++		}
++		if f.Properties.State != "" && f.Properties.State != f.Properties.City {
++			addressParts = append(addressParts, f.Properties.State)
++		}
++		if f.Properties.Country != "" {
++			addressParts = append(addressParts, f.Properties.Country)
++		}
++
++		fullAddress := strings.Join(addressParts, ", ")
++		if displayName == "" {
++			displayName = fullAddress
++		}
++		if fullAddress == "" {
++			fullAddress = displayName
++		}
++
++		placeID := fmt.Sprintf("%s%d", f.Properties.OsmType, f.Properties.OsmID)
++		if placeID == "" || placeID == "0" {
++			placeID = fmt.Sprintf("%.6f,%.6f", lat, lon)
++		}
++
++		suggestions = append(suggestions, GeocodeSuggestion{
++			PlaceID:     placeID,
++			DisplayName: displayName,
++			Address:     fullAddress,
++			Latitude:    lat,
++			Longitude:   lon,
++			Lat:         lat,
++			Lon:         lon,
++			Provider:    "photon",
++			MapURL:      fmt.Sprintf("https://www.openstreetmap.org/?mlat=%f&mlon=%f#map=16/%f/%f", lat, lon, lat, lon),
++		})
++	}
++
++	return suggestions, nil
 +}
 +
 +func (p *MapsPlugin) searchGooglePlaces(query string) ([]GeocodeSuggestion, error) {
@@ -1996,6 +2322,9 @@ index 000000000..15212ceeb
 +}
 +
 +func (p *MapsPlugin) searchNominatim(query string) ([]GeocodeSuggestion, error) {
++	// Nominatim Usage Policy enforcement: Rate limit to 1 req/s
++	p.nominatimLimiter.Wait()
++
 +	baseURL := viper.GetString("plugins.maps.nominatim_url")
 +	if baseURL == "" {
 +		baseURL = "https://nominatim.openstreetmap.org"
@@ -2082,7 +2411,13 @@ index 000000000..15212ceeb
 +	}
 +	task := &models.Task{ID: taskID}
 +	canRead, _, err := task.CanRead(s, currentUser)
-+	if err != nil || !canRead {
++	if err != nil {
++		if models.IsErrTaskDoesNotExist(err) {
++			return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++		}
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++	if !canRead {
 +		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 +	}
 +
@@ -2129,11 +2464,20 @@ index 000000000..15212ceeb
 +	}
 +	task := &models.Task{ID: taskID}
 +	canUpdate, err := task.CanUpdate(s, currentUser)
-+	if err != nil || !canUpdate {
++	if err != nil {
++		if models.IsErrTaskDoesNotExist(err) {
++			return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++		}
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++	if !canUpdate {
 +		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 +	}
 +	if err := task.ReadOne(s, currentUser); err != nil {
-+		return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++		if models.IsErrTaskDoesNotExist(err) {
++			return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++		}
++		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to read task")
 +	}
 +
 +	existing := &TaskLocation{}
@@ -2146,6 +2490,9 @@ index 000000000..15212ceeb
 +	input.ProjectID = task.ProjectID
 +	if input.Provider == "" {
 +		input.Provider = p.getProvider()
++	}
++	if input.MapURL == "" {
++		input.MapURL = fmt.Sprintf("https://www.openstreetmap.org/?mlat=%f&mlon=%f#map=16/%f/%f", input.Latitude, input.Longitude, input.Latitude, input.Longitude)
 +	}
 +
 +	if has {
@@ -2179,7 +2526,13 @@ index 000000000..15212ceeb
 +	}
 +	task := &models.Task{ID: taskID}
 +	canUpdate, err := task.CanUpdate(s, currentUser)
-+	if err != nil || !canUpdate {
++	if err != nil {
++		if models.IsErrTaskDoesNotExist(err) {
++			return echo.NewHTTPError(http.StatusNotFound, "Task not found")
++		}
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++	if !canUpdate {
 +		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 +	}
 +	_, err = s.Table("task_locations").Where("task_id = ?", taskID).Delete(&TaskLocation{})
@@ -2207,12 +2560,23 @@ index 000000000..15212ceeb
 +	}
 +	project := &models.Project{ID: projectID}
 +	canRead, _, err := project.CanRead(s, currentUser)
-+	if err != nil || !canRead {
++	if err != nil {
++		if models.IsErrProjectDoesNotExist(err) {
++			return echo.NewHTTPError(http.StatusNotFound, "Project not found")
++		}
++		return echo.NewHTTPError(http.StatusInternalServerError, "Database error")
++	}
++	if !canRead {
 +		return echo.NewHTTPError(http.StatusForbidden, "Forbidden")
 +	}
 +
-+	var locations []TaskLocation
-+	if err := s.Table("task_locations").Where("project_id = ?", projectID).Find(&locations); err != nil {
++	locations := []TaskLocation{}
++	err = s.Table("task_locations").
++		Select("task_locations.*").
++		Join("INNER", "tasks", "tasks.id = task_locations.task_id").
++		Where("tasks.project_id = ? AND tasks.deleted_at IS NULL", projectID).
++		Find(&locations)
++	if err != nil {
 +		return echo.NewHTTPError(http.StatusInternalServerError, "Failed to fetch project locations")
 +	}
 +	for i := range locations {
@@ -2232,12 +2596,62 @@ index 000000000..15212ceeb
 +	if err := json.Unmarshal(msg.Payload, &ev); err != nil {
 +		return err
 +	}
-+	if ev.Task == nil {
++	if ev.Task == nil || ev.Task.ID == 0 {
 +		return nil
 +	}
 +	s := db.NewSession()
 +	defer s.Close()
 +	_, err := s.Table("task_locations").Where("task_id = ?", ev.Task.ID).Delete(&TaskLocation{})
++	if err != nil {
++		_ = s.Rollback()
++		return err
++	}
++	return s.Commit()
++}
++
++type TaskUpdatedLocationSyncListener struct{}
++
++func (l *TaskUpdatedLocationSyncListener) Name() string {
++	return "maps.task.updated.sync"
++}
++
++func (l *TaskUpdatedLocationSyncListener) Handle(msg *message.Message) error {
++	var ev models.TaskUpdatedEvent
++	if err := json.Unmarshal(msg.Payload, &ev); err != nil {
++		return err
++	}
++	if ev.Task == nil || ev.Task.ID == 0 || ev.Task.ProjectID == 0 {
++		return nil
++	}
++	s := db.NewSession()
++	defer s.Close()
++	_, err := s.Table("task_locations").Where("task_id = ?", ev.Task.ID).Cols("project_id").Update(&TaskLocation{
++		ProjectID: ev.Task.ProjectID,
++	})
++	if err != nil {
++		_ = s.Rollback()
++		return err
++	}
++	return s.Commit()
++}
++
++type ProjectDeletedLocationCleanupListener struct{}
++
++func (l *ProjectDeletedLocationCleanupListener) Name() string {
++	return "maps.project.deleted.cleanup"
++}
++
++func (l *ProjectDeletedLocationCleanupListener) Handle(msg *message.Message) error {
++	var ev models.ProjectDeletedEvent
++	if err := json.Unmarshal(msg.Payload, &ev); err != nil {
++		return err
++	}
++	if ev.Project == nil || ev.Project.ID == 0 {
++		return nil
++	}
++	s := db.NewSession()
++	defer s.Close()
++	_, err := s.Table("task_locations").Where("project_id = ?", ev.Project.ID).Delete(&TaskLocation{})
 +	if err != nil {
 +		_ = s.Rollback()
 +		return err

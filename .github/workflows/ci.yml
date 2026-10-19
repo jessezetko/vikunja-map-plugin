@@ -1,0 +1,110 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  test-backend:
+    name: Backend Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Checkout Vikunja Base
+        uses: actions/checkout@v4
+        with:
+          repository: go-vikunja/vikunja
+          ref: v2.7.0
+          path: vikunja
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.27'
+
+      - name: Run Plugin Tests
+        run: |
+          mkdir -p vikunja/plugins/maps
+          cp plugin/plugins/maps/main.go vikunja/plugins/maps/main.go
+          cp plugin/plugins/maps/main_test.go vikunja/plugins/maps/main_test.go
+          cd vikunja
+          go test -v -tags test ./plugins/maps/...
+
+  test-frontend:
+    name: Frontend Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Checkout Vikunja Base
+        uses: actions/checkout@v4
+        with:
+          repository: go-vikunja/vikunja
+          ref: v2.7.0
+          path: vikunja
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: latest
+
+      - name: Apply Patch and Run Frontend Tests
+        run: |
+          cd vikunja
+          git apply ../plugin/vikunja-core-maps.patch
+          cp ../plugin/frontend/tests/unit/LocationSearchField.spec.ts frontend/src/components/tasks/partials/LocationSearchField.spec.ts
+          cd frontend
+          pnpm install --frozen-lockfile
+          pnpm test:unit LocationSearchField.spec.ts --run
+
+  verify-installer:
+    name: Verify Installer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@v4
+        with:
+          path: plugin
+
+      - name: Clone Vikunja v2.7.0
+        run: |
+          git clone --depth 1 --branch v2.7.0 https://github.com/go-vikunja/vikunja.git vikunja
+
+      - name: Run install.sh
+        run: |
+          cd plugin
+          ./install.sh ../vikunja
+
+  docker-build:
+    name: Build Production Docker Image
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Plugin
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: false
+          tags: vikunja-maps:test
+          build-args: |
+            VIKUNJA_REF=v2.7.0

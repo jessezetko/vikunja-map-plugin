@@ -122,5 +122,29 @@ export async function getProjectLocations(projectId: number): Promise<TaskLocati
 	if (!res.ok) {
 		throw new Error(`Failed to fetch project locations: ${res.statusText}`)
 	}
-	return res.json()
+	const data = await res.json()
+	return Array.isArray(data) ? data : []
 }
+
+export interface MapsConfig {
+	provider: string
+	supports_autocomplete: boolean
+}
+
+export async function getMapsConfig(): Promise<MapsConfig> {
+	try {
+		const rootUrl = getApiRootUrl()
+		const url = `${rootUrl}/api/v1/plugins/maps/config`
+		const res = await fetch(url, {
+			headers: getAuthHeaders(),
+			credentials: 'include',
+		})
+		if (!res.ok) {
+			return {provider: 'photon', supports_autocomplete: true}
+		}
+		return await res.json()
+	} catch {
+		return {provider: 'photon', supports_autocomplete: true}
+	}
+}
+

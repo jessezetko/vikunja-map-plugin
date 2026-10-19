@@ -10,16 +10,17 @@ Designed for vacation planning, travel itineraries, field service, and geo-tagge
 
 ## Features
 
-- 📍 **Work Item Location Field**: Autocomplete search directly within task details. Select an address or venue to automatically attach coordinates, display names, and external map links.
-- 🗺️ **Interactive Project Map View**: A 5th view tab alongside List, Gantt, Table, and Kanban. Displays an interactive Leaflet/OpenStreetMap canvas with pins for all geocoded project tasks.
-- 🔍 **Multiple Geocoding Providers**:
-  - **OpenStreetMap Nominatim** *(Default, free, zero API key required)* with OSM usage policy compliance.
-  - **Google Places API (New)** *(Optional)* with server-side API key protection.
-- 🌓 **Zero-Key Dark & Light Modes**: 
-  - **Default (No API Key Required)**: Uses official OpenStreetMap tiles (`tile.openstreetmap.org`) with seamless CSS dark mode inversion when switching to dark theme.
-  - **Optional CARTO Basemaps**: If you have a [CARTO API key](https://carto.com/basemaps/), set `CARTO_BASEMAPS_API_KEY` to use native CARTO Voyager and Dark Matter tiles.
-- 💾 **Native Database Persistence**: Uses Vikunja's Yaegi migration plugin system to manage the `task_locations` table across SQLite, PostgreSQL, and MySQL.
-- 🧹 **Automatic Cleanup**: Listens to Vikunja's `TaskDeletedEvent` via Watermill to prune location records when tasks are deleted.
+- 📍 **Work Item Location Field**: Search directly within task details. Select an address or venue to attach coordinates, display names, and map links.
+- 🗺️ **Interactive Project Map View**: A 5th view tab alongside List, Gantt, Table, and Kanban. Displays an interactive Leaflet map canvas with pins for all geocoded project tasks. Marker visibility dynamically syncs when tasks move across projects.
+- 🔍 **Policy-Compliant Geocoding & Autocomplete**:
+  - **Photon by Komoot** *(Default, free, zero API key required)*: OpenStreetMap-based geocoding specifically engineered for search-as-you-type autocomplete. Defaults to `https://photon.komoot.io` or connects seamlessly to a self-hosted instance (`komoot/photon`).
+  - **OpenStreetMap Nominatim** *(Free, zero API key required)*: Strict compliance with [OSMF Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/). Autocomplete-as-you-type is automatically disabled; search queries require pressing Enter or clicking the Search button. Includes server-side 24-hour query caching and a 1 request/second rate limiter.
+  - **Google Places API** *(Optional)*: Commercial high-precision autocomplete with server-side API key protection.
+- 🌓 **Zero-Key Map Tiles (Dark & Light Modes)**:
+  - **Default (No API Key Required)**: Standard raster OpenStreetMap tiles (`tile.openstreetmap.org`) with CSS dark-mode inversion when switching themes.
+  - **Optional CARTO Basemaps**: If configured with a [CARTO API key](https://carto.com/basemaps/), switches to CARTO Voyager (light) and Dark Matter (dark) tiles.
+- 💾 **Native Database Persistence & Dynamic Membership**: Uses Vikunja's Yaegi migration system for the `task_locations` table across SQLite, PostgreSQL, and MySQL. Automatically joins tasks to guarantee markers reflect current task project locations.
+- 🧹 **Automatic Cleanup & Sync**: Listens to Vikunja's `TaskUpdatedEvent` to keep location project associations in sync, `TaskDeletedEvent` to remove pins, and `ProjectDeletedEvent` to clean up orphaned project locations.
 
 ---
 
@@ -83,20 +84,29 @@ mage build:build
 
 ## Configuration Reference
 
+### Understanding Map Tiles vs. Geocoding Providers
+
+It is important to distinguish between **Map Tiles** and **Geocoding Providers**:
+- **Map Tiles (Display)**: The raster image tiles displayed on the interactive map canvas. OpenStreetMap tiles (`https://tile.openstreetmap.org/`) are used by default with **zero API key required**. If `CARTO_BASEMAPS_API_KEY` is provided, CARTO Voyager and Dark Matter tiles are used instead.
+- **Geocoding Providers (Search & Autocomplete)**: The service that transforms search strings (e.g. "Eiffel Tower") into geographic coordinates (`latitude`, `longitude`).
+  - **Photon** (`photon`): **Default**. Designed specifically for search-as-you-type. Free public instance hosted by Komoot (`https://photon.komoot.io`), or self-host your own via Docker (`docker run -d -p 2322:2322 komoot/photon`).
+  - **Nominatim** (`nominatim`): Standard OSM Nominatim. Keystroke autocomplete is automatically disabled in the UI; users must press Enter or click "Search" to trigger queries, complying with OSMF usage policy.
+  - **Google Places** (`google`): High-precision Google Places New API. Requires `google_api_key`.
+
 ### Docker Compose Environment Variables
 ```yaml
 environment:
   VIKUNJA_PLUGINS_ENABLED: "true"
   VIKUNJA_PLUGINS_LOADER: "yaegi"
   VIKUNJA_PLUGINS_DIR: "/app/vikunja/plugins"
-  # Provider: "nominatim" (default) or "google"
-  VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "nominatim"
+  # Geocoder Provider: "photon" (default), "nominatim", or "google"
+  VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "photon"
+  # VIKUNJA_PLUGINS_MAPS_PHOTON_URL: "https://photon.komoot.io" # or http://photon:2322
+  # VIKUNJA_PLUGINS_MAPS_NOMINATIM_URL: "https://nominatim.openstreetmap.org"
   # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
   # Optional CARTO basemaps API key (required ONLY if using CARTO tiles instead of OpenStreetMap)
   # CARTO_BASEMAPS_API_KEY: "your-carto-key"
 ```
-
-> **Note on Map Tiles**: By default, the plugin uses standard OpenStreetMap tiles (`https://tile.openstreetmap.org/`) and requires **no API key**. If you configure `CARTO_BASEMAPS_API_KEY`, it will switch to CARTO's Voyager/Dark Matter tiles. (Without an API key, CARTO watermarks tiles with "API KEY REQUIRED", so leave it unset to use OpenStreetMap).
 
 ### Or in `config.yml`
 ```yaml
@@ -105,9 +115,10 @@ plugins:
   loader: 'yaegi'
   dir: '/app/vikunja/plugins'
   maps:
-    geocoder_provider: 'nominatim' # or 'google'
-    # google_api_key: 'AIzaSy...'
+    geocoder_provider: 'photon' # 'photon' (default), 'nominatim', or 'google'
+    # photon_url: 'https://photon.komoot.io' # or custom self-hosted URL
     # nominatim_url: 'https://nominatim.openstreetmap.org'
+    # google_api_key: 'AIzaSy...'
 ```
 
 ---

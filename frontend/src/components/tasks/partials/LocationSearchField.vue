@@ -42,26 +42,42 @@
 			v-else
 			class="location-autocomplete"
 		>
-			<div
-				class="control has-icons-left"
-				:class="{'is-loading': isSearching}"
-			>
-				<input
-					ref="inputRef"
-					v-model="searchQuery"
-					type="text"
-					class="input is-small"
-					:disabled="disabled"
-					:placeholder="$t('task.location.searchPlaceholder')"
-					autocomplete="off"
-					@input="onSearchInput"
-					@keydown.esc="cancelEditing"
-					@focus="onSearchInput"
-					@blur="onBlur"
+			<div class="field has-addons is-marginless">
+				<div
+					class="control has-icons-left is-expanded"
+					:class="{'is-loading': isSearching}"
 				>
-				<span class="icon is-small is-left">
-					<Icon icon="map-marker-alt" />
-				</span>
+					<input
+						ref="inputRef"
+						v-model="searchQuery"
+						type="text"
+						class="input is-small"
+						:disabled="disabled"
+						:placeholder="$t('task.location.searchPlaceholder')"
+						autocomplete="off"
+						@input="onSearchInput"
+						@keydown.enter.prevent="executeSearch"
+						@keydown.esc="cancelEditing"
+						@focus="onFocus"
+						@blur="onBlur"
+					>
+					<span class="icon is-small is-left">
+						<Icon icon="map-marker-alt" />
+					</span>
+				</div>
+				<div
+					v-if="!supportsAutocomplete"
+					class="control"
+				>
+					<BaseButton
+						size="small"
+						variant="primary"
+						:disabled="disabled || !searchQuery.trim()"
+						@click.prevent="executeSearch"
+					>
+						{{ $t('task.location.searchButton') }}
+					</BaseButton>
+				</div>
 			</div>
 
 			<ul
@@ -104,20 +120,22 @@
 </template>
 
 <script setup lang="ts">
-import {computed, nextTick, onMounted, ref, watch} from 'vue'
+import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
 import {useI18n} from 'vue-i18n'
 
 import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
 import {
 	deleteTaskLocation,
+	getMapsConfig,
 	getTaskLocation,
 	saveTaskLocation,
 	searchLocations,
 	type GeocodeResult,
+	type MapsConfig,
 	type TaskLocation,
 } from '@/client/queries/maps'
-import {success} from '@/message'
+import {error, success} from '@/message'
 
 const props = withDefaults(defineProps<{
 	taskId: number
@@ -140,8 +158,12 @@ const isSearching = ref(false)
 const showDropdown = ref(false)
 const isEditing = ref(false)
 const inputRef = ref<HTMLInputElement | null>(null)
+const mapsConfig = ref<MapsConfig>({provider: 'photon', supports_autocomplete: true})
+
+const supportsAutocomplete = computed(() => mapsConfig.value.supports_autocomplete)
 
 let debounceTimer: ReturnType<typeof setTimeout> | null = null
+let abortController: AbortController | null = null
 
 const mapUrl = computed(() => {
 	if (!savedLocation.value) return ''
@@ -155,11 +177,12 @@ async function loadLocation() {
 		savedLocation.value = await getTaskLocation(props.taskId)
 	} catch {
 		savedLocation.value = null
+		error(t('task.location.loadError'))
 	}
 	emit('updated', savedLocation.value)
 }
 
-function onSearchInput() {
+async function executeSearch() {
 	if (debounceTimer) clearTimeout(debounceTimer)
 	const q = searchQuery.value.trim()
 	if (q.length < 2) {
@@ -167,17 +190,58 @@ function onSearchInput() {
 		showDropdown.value = false
 		return
 	}
+
+	if (abortController) {
+		abortController.abort()
+	}
+	const currentAbort = new AbortController()
+	abortController = currentAbort
+
 	isSearching.value = true
 	showDropdown.value = true
-	debounceTimer = setTimeout(async () => {
-		try {
-			suggestions.value = await searchLocations(q)
-		} catch {
+	try {
+		const results = await searchLocations(q, currentAbort.signal)
+		if (abortController === currentAbort) {
+			suggestions.value = results
+		}
+	} catch (e: unknown) {
+		if ((e instanceof DOMException && e.name === 'AbortError') || (e as Error)?.name === 'AbortError' || currentAbort.signal.aborted) {
+			return
+		}
+		if (abortController === currentAbort) {
 			suggestions.value = []
-		} finally {
+			error(t('task.location.searchError'))
+		}
+	} finally {
+		if (abortController === currentAbort) {
 			isSearching.value = false
 		}
-	}, 350)
+	}
+}
+
+function onSearchInput() {
+	if (!supportsAutocomplete.value) {
+		// Public Nominatim compliance: autocomplete-as-you-type strictly prohibited.
+		return
+	}
+	if (debounceTimer) clearTimeout(debounceTimer)
+	const q = searchQuery.value.trim()
+	if (q.length < 3) {
+		suggestions.value = []
+		showDropdown.value = false
+		return
+	}
+	isSearching.value = true
+	showDropdown.value = true
+	debounceTimer = setTimeout(() => {
+		executeSearch()
+	}, 400)
+}
+
+function onFocus() {
+	if (supportsAutocomplete.value && searchQuery.value.trim().length >= 3 && suggestions.value.length > 0) {
+		showDropdown.value = true
+	}
 }
 
 async function selectSuggestion(item: GeocodeResult) {
@@ -202,7 +266,7 @@ async function selectSuggestion(item: GeocodeResult) {
 		emit('updated', saved)
 		success(t('task.location.saved'))
 	} catch {
-		// Ignore or handle error
+		error(t('task.location.saveError'))
 	}
 }
 
@@ -215,7 +279,7 @@ async function clearLocation() {
 		emit('cleared')
 		success(t('task.location.removed'))
 	} catch {
-		// Ignore
+		error(t('task.location.deleteError'))
 	}
 }
 
@@ -229,6 +293,14 @@ function startEditing() {
 }
 
 function cancelEditing() {
+	if (abortController) {
+		abortController.abort()
+		abortController = null
+	}
+	if (debounceTimer) {
+		clearTimeout(debounceTimer)
+		debounceTimer = null
+	}
 	isEditing.value = false
 	showDropdown.value = false
 	suggestions.value = []
@@ -258,8 +330,24 @@ watch(() => props.taskId, () => {
 	loadLocation()
 })
 
-onMounted(() => {
+onMounted(async () => {
+	try {
+		mapsConfig.value = await getMapsConfig()
+	} catch {
+		mapsConfig.value = {provider: 'photon', supports_autocomplete: true}
+	}
 	loadLocation()
+})
+
+onBeforeUnmount(() => {
+	if (debounceTimer) {
+		clearTimeout(debounceTimer)
+		debounceTimer = null
+	}
+	if (abortController) {
+		abortController.abort()
+		abortController = null
+	}
 })
 </script>
 
@@ -324,6 +412,10 @@ onMounted(() => {
 .location-autocomplete {
 	position: relative;
 	inline-size: 100%;
+}
+
+.is-marginless {
+	margin-bottom: 0 !important;
 }
 
 .location-suggestions-menu {

@@ -139,6 +139,7 @@
 
 <script setup lang="ts">
 import {computed, nextTick, onBeforeUnmount, onMounted, ref, watch} from 'vue'
+import {useI18n} from 'vue-i18n'
 import {useResizeObserver} from '@vueuse/core'
 import {useRouter} from 'vue-router'
 import L from 'leaflet'
@@ -148,6 +149,7 @@ import BaseButton from '@/components/base/BaseButton.vue'
 import Icon from '@/components/misc/Icon'
 import ProjectWrapper from '@/components/project/ProjectWrapper.vue'
 import {getProjectLocations, type TaskLocation} from '@/client/queries/maps'
+import {error} from '@/message'
 import {useTaskList} from '@/composables/useTaskList'
 import {useColorScheme} from '@/composables/useColorScheme'
 
@@ -160,6 +162,7 @@ const props = withDefaults(defineProps<{
 })
 
 const router = useRouter()
+const {t} = useI18n()
 const {isDark} = useColorScheme()
 const isMobileDrawerOpen = ref(false)
 
@@ -244,7 +247,7 @@ async function fetchLocations() {
 	if (!props.projectId) return
 	try {
 		isLoadingLocations.value = true
-		const list = await getProjectLocations(props.projectId)
+		const list = (await getProjectLocations(props.projectId)) || []
 		const map = new Map<number, TaskLocation>()
 		for (const loc of list) {
 			map.set(loc.task_id, loc)
@@ -252,7 +255,7 @@ async function fetchLocations() {
 		locationsByTaskId.value = map
 		renderMarkers()
 	} catch {
-		// Ignore error
+		error(t('project.map.loadError'))
 	} finally {
 		isLoadingLocations.value = false
 	}

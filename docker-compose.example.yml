@@ -17,7 +17,8 @@ services:
       VIKUNJA_PLUGINS_ENABLED: "true"
       VIKUNJA_PLUGINS_LOADER: "yaegi"
       VIKUNJA_PLUGINS_DIR: "/app/vikunja/plugins"
-      VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "nominatim" # or "google"
+      VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "photon" # 'photon' (default), 'nominatim', or 'google'
+      # VIKUNJA_PLUGINS_MAPS_PHOTON_URL: "https://photon.komoot.io"
       # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
       # CARTO_BASEMAPS_API_KEY: ""
     ports:
