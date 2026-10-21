@@ -11,7 +11,7 @@ Designed for vacation planning, travel itineraries, field service, and geo-tagge
 ## Features
 
 - 📍 **Work Item Location Field**: Search directly within task details. Select an address or venue to attach coordinates, display names, and map links.
-- 🗺️ **Interactive Project Map View**: A 5th view tab alongside List, Gantt, Table, and Kanban. Displays an interactive Leaflet map canvas with pins for all geocoded project tasks. Marker visibility dynamically syncs when tasks move across projects.
+- 🗺️ **Interactive Project Map View**: A 5th view tab alongside List, Gantt, Table, and Kanban. Displays an interactive Leaflet map canvas with pins for all geocoded project tasks. Pins dynamically reflect each work item's custom color attribute, and marker visibility syncs when tasks move across projects.
 - 🔍 **Policy-Compliant Geocoding & Autocomplete**:
   - **Photon by Komoot** *(Default, free, zero API key required)*: OpenStreetMap-based geocoding specifically engineered for search-as-you-type autocomplete. Defaults to `https://photon.komoot.io` or connects seamlessly to a self-hosted instance (`komoot/photon`).
   - **OpenStreetMap Nominatim** *(Free, zero API key required)*: Strict compliance with [OSMF Nominatim Usage Policy](https://operations.osmfoundation.org/policies/nominatim/). Autocomplete-as-you-type is automatically disabled; search queries require pressing Enter or clicking the Search button. Includes server-side 24-hour query caching and a 1 request/second rate limiter.
@@ -153,7 +153,7 @@ plugins:
 1. Navigate to any project.
 2. In the project view bar (next to *List*, *Gantt*, *Table*, *Kanban*), click the **`+`** button to add a view.
 3. Select **Map** and click **Save**.
-4. The interactive map renders pins for all geocoded tasks in the project, complete with pin popups, a list sidebar, and a **Fit all pins** control:
+4. The interactive map renders pins for all geocoded tasks in the project (respecting each work item's custom color), complete with pin popups, a list sidebar, and a **Fit all pins** control:
 
 ![Vikunja Project Map View](docs/images/map-view.png)
 
