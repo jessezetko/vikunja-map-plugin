@@ -54,6 +54,10 @@ if [ -f "${SCRIPT_DIR}/frontend/src/components/tasks/partials/LocationSearchFiel
     mkdir -p "${TARGET_DIR}/frontend/src/components/tasks/partials"
     cp "${SCRIPT_DIR}/frontend/src/components/tasks/partials/LocationSearchField.spec.ts" "${TARGET_DIR}/frontend/src/components/tasks/partials/LocationSearchField.spec.ts"
 fi
+if [ -f "${SCRIPT_DIR}/frontend/src/components/project/views/ProjectViewMap.spec.ts" ]; then
+    mkdir -p "${TARGET_DIR}/frontend/src/components/project/views"
+    cp "${SCRIPT_DIR}/frontend/src/components/project/views/ProjectViewMap.spec.ts" "${TARGET_DIR}/frontend/src/components/project/views/ProjectViewMap.spec.ts"
+fi
 
 # 3. Ensure frontend Leaflet dependencies are installed
 if [ -d "${TARGET_DIR}/frontend" ]; then
