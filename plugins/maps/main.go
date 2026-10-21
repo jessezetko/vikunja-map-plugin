@@ -4,6 +4,7 @@ package main
 
 import (
 	"bytes"
+	"container/list"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -11,6 +12,7 @@ import (
 	"math"
 	"net/http"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 	"sync"
@@ -75,13 +77,16 @@ func isValidCoordinate(lat, lon float64) bool {
 }
 
 type cacheEntry struct {
+	key         string
 	suggestions []GeocodeSuggestion
 	expiresAt   time.Time
+	element     *list.Element
 }
 
 type geocodeCache struct {
 	sync.RWMutex
-	entries    map[string]cacheEntry
+	entries    map[string]*cacheEntry
+	lruList    *list.List
 	ttl        time.Duration
 	negTTL     time.Duration
 	maxEntries int
@@ -97,7 +102,8 @@ func newGeocodeCache(ttl, negTTL time.Duration, maxEntries int) *geocodeCache {
 		negTTL = 5 * time.Minute
 	}
 	c := &geocodeCache{
-		entries:    make(map[string]cacheEntry),
+		entries:    make(map[string]*cacheEntry),
+		lruList:    list.New(),
 		ttl:        ttl,
 		negTTL:     negTTL,
 		maxEntries: maxEntries,
@@ -126,6 +132,9 @@ func (c *geocodeCache) evictExpired() {
 	defer c.Unlock()
 	for k, v := range c.entries {
 		if now.After(v.expiresAt) {
+			if v.element != nil {
+				c.lruList.Remove(v.element)
+			}
 			delete(c.entries, k)
 		}
 	}
@@ -146,28 +155,40 @@ func (c *geocodeCache) Close() {
 	})
 }
 
-func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
-	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
-	c.RLock()
-	entry, exists := c.entries[key]
-	c.RUnlock()
+func (c *geocodeCache) makeKey(provider, query string, lang ...string) string {
+	l := ""
+	if len(lang) > 0 {
+		l = strings.ToLower(strings.TrimSpace(lang[0]))
+	}
+	return strings.ToLower(strings.TrimSpace(provider)) + ":" + l + ":" + strings.ToLower(strings.TrimSpace(query))
+}
 
+func (c *geocodeCache) Get(provider, query string, lang ...string) ([]GeocodeSuggestion, bool) {
+	key := c.makeKey(provider, query, lang...)
+	c.Lock()
+	defer c.Unlock()
+
+	entry, exists := c.entries[key]
 	if !exists {
 		return nil, false
 	}
 	if time.Now().After(entry.expiresAt) {
-		c.Lock()
-		if current, ok := c.entries[key]; ok && time.Now().After(current.expiresAt) {
-			delete(c.entries, key)
+		if entry.element != nil {
+			c.lruList.Remove(entry.element)
 		}
-		c.Unlock()
+		delete(c.entries, key)
 		return nil, false
+	}
+
+	// Move accessed entry to front of LRU list
+	if entry.element != nil {
+		c.lruList.MoveToFront(entry.element)
 	}
 	return entry.suggestions, true
 }
 
-func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion) {
-	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
+func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion, lang ...string) {
+	key := c.makeKey(provider, query, lang...)
 	now := time.Now()
 	entryTTL := c.ttl
 	if len(suggestions) == 0 {
@@ -177,33 +198,179 @@ func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggesti
 	c.Lock()
 	defer c.Unlock()
 
-	if _, exists := c.entries[key]; exists {
-		c.entries[key] = cacheEntry{
-			suggestions: suggestions,
-			expiresAt:   now.Add(entryTTL),
+	if entry, exists := c.entries[key]; exists {
+		entry.suggestions = suggestions
+		entry.expiresAt = now.Add(entryTTL)
+		if entry.element != nil {
+			c.lruList.MoveToFront(entry.element)
 		}
 		return
 	}
 
+	// Evict expired entries if at or over capacity
 	if len(c.entries) >= c.maxEntries {
 		for k, v := range c.entries {
 			if now.After(v.expiresAt) {
+				if v.element != nil {
+					c.lruList.Remove(v.element)
+				}
 				delete(c.entries, k)
 			}
 		}
 	}
 
-	if len(c.entries) >= c.maxEntries {
-		for k := range c.entries {
-			delete(c.entries, k)
-			break
+	// If still at capacity, evict the least recently used element (back of LRU list)
+	if len(c.entries) >= c.maxEntries && c.lruList.Len() > 0 {
+		back := c.lruList.Back()
+		if back != nil {
+			c.lruList.Remove(back)
+			if oldKey, ok := back.Value.(string); ok {
+				delete(c.entries, oldKey)
+			}
 		}
 	}
 
-	c.entries[key] = cacheEntry{
+	elem := c.lruList.PushFront(key)
+	c.entries[key] = &cacheEntry{
+		key:         key,
 		suggestions: suggestions,
 		expiresAt:   now.Add(entryTTL),
+		element:     elem,
 	}
+}
+
+type clientBucket struct {
+	tokens     float64
+	lastRefill time.Time
+	lastAccess time.Time
+}
+
+type clientRateLimiter struct {
+	sync.Mutex
+	buckets  map[string]*clientBucket
+	rate     float64
+	burst    float64
+	stopChan chan struct{}
+	stopOnce sync.Once
+}
+
+func newClientRateLimiter(rate, burst float64) *clientRateLimiter {
+	l := &clientRateLimiter{
+		buckets:  make(map[string]*clientBucket),
+		rate:     rate,
+		burst:    burst,
+		stopChan: make(chan struct{}),
+	}
+	go l.runPruneLoop(10 * time.Minute)
+	return l
+}
+
+func (l *clientRateLimiter) Allow(clientKey string) bool {
+	l.Lock()
+	defer l.Unlock()
+
+	now := time.Now()
+	b, exists := l.buckets[clientKey]
+	if !exists {
+		l.buckets[clientKey] = &clientBucket{
+			tokens:     l.burst - 1.0,
+			lastRefill: now,
+			lastAccess: now,
+		}
+		return true
+	}
+
+	elapsed := now.Sub(b.lastRefill).Seconds()
+	b.tokens = math.Min(l.burst, b.tokens+elapsed*l.rate)
+	b.lastRefill = now
+	b.lastAccess = now
+
+	if b.tokens >= 1.0 {
+		b.tokens -= 1.0
+		return true
+	}
+
+	return false
+}
+
+func (l *clientRateLimiter) runPruneLoop(interval time.Duration) {
+	ticker := time.NewTicker(interval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-ticker.C:
+			l.prune()
+		case <-l.stopChan:
+			return
+		}
+	}
+}
+
+func (l *clientRateLimiter) prune() {
+	cutoff := time.Now().Add(-15 * time.Minute)
+	l.Lock()
+	defer l.Unlock()
+	for k, b := range l.buckets {
+		if b.lastAccess.Before(cutoff) {
+			delete(l.buckets, k)
+		}
+	}
+}
+
+func (l *clientRateLimiter) isClosed() bool {
+	select {
+	case <-l.stopChan:
+		return true
+	default:
+		return false
+	}
+}
+
+func (l *clientRateLimiter) Close() {
+	l.stopOnce.Do(func() {
+		close(l.stopChan)
+	})
+}
+
+var validLangRegex = regexp.MustCompile(`^[a-zA-Z]{2,5}(-[a-zA-Z0-9]{2,5})?$`)
+
+func resolveLanguage(c *echo.Context) string {
+	if lang := strings.TrimSpace(c.QueryParam("lang")); lang != "" {
+		if validLangRegex.MatchString(lang) {
+			return strings.ToLower(lang)
+		}
+	}
+
+	if cfgLang := strings.TrimSpace(viper.GetString("plugins.maps.lang")); cfgLang != "" {
+		if validLangRegex.MatchString(cfgLang) {
+			return strings.ToLower(cfgLang)
+		}
+	}
+
+	acceptLang := c.Request().Header.Get("Accept-Language")
+	if acceptLang != "" {
+		parts := strings.Split(acceptLang, ",")
+		if len(parts) > 0 {
+			primary := strings.TrimSpace(strings.Split(parts[0], ";")[0])
+			langCode := strings.Split(primary, "-")[0]
+			if validLangRegex.MatchString(langCode) {
+				return strings.ToLower(langCode)
+			}
+		}
+	}
+
+	return ""
+}
+
+func getClientKey(c *echo.Context) string {
+	if u, ok := c.Get("user").(*user.User); ok && u != nil && u.ID > 0 {
+		return fmt.Sprintf("user:%d", u.ID)
+	}
+	ip := c.RealIP()
+	if ip != "" {
+		return "ip:" + ip
+	}
+	return "unknown"
 }
 
 type rateLimiter struct {
@@ -259,6 +426,7 @@ type MapsPlugin struct {
 	nominatimLimiter *rateLimiter
 	photonLimiter    *rateLimiter
 	googleLimiter    *rateLimiter
+	clientLimiter    *clientRateLimiter
 }
 
 var singleton = &MapsPlugin{
@@ -267,6 +435,7 @@ var singleton = &MapsPlugin{
 	nominatimLimiter: newRateLimiter(1050 * time.Millisecond),
 	photonLimiter:    newRateLimiter(100 * time.Millisecond),
 	googleLimiter:    newRateLimiter(100 * time.Millisecond),
+	clientLimiter:    newClientRateLimiter(5.0, 15.0),
 }
 
 func NewPlugin() plugins.Plugin {
@@ -289,9 +458,34 @@ func (p *MapsPlugin) Version() string {
 	return "1.0.0"
 }
 
+func (p *MapsPlugin) isClientRateLimitEnabled() bool {
+	if viper.IsSet("plugins.maps.client_rate_limit") {
+		return viper.GetFloat64("plugins.maps.client_rate_limit") > 0
+	}
+	return true
+}
+
+func (p *MapsPlugin) getClientRateSettings() (float64, float64) {
+	rate := 5.0
+	burst := 15.0
+	if viper.IsSet("plugins.maps.client_rate_limit") {
+		rate = viper.GetFloat64("plugins.maps.client_rate_limit")
+	}
+	if viper.IsSet("plugins.maps.client_rate_burst") {
+		burst = viper.GetFloat64("plugins.maps.client_rate_burst")
+	}
+	return rate, burst
+}
+
 func (p *MapsPlugin) Init() error {
 	if p.cache == nil || p.cache.isClosed() {
 		p.cache = newGeocodeCache(24*time.Hour, 5*time.Minute, 5000)
+	}
+	if p.isClientRateLimitEnabled() {
+		rate, burst := p.getClientRateSettings()
+		if p.clientLimiter == nil || p.clientLimiter.isClosed() {
+			p.clientLimiter = newClientRateLimiter(rate, burst)
+		}
 	}
 	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
 	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
@@ -304,6 +498,9 @@ func (p *MapsPlugin) Shutdown() error {
 	log.Infof("Vikunja Maps plugin shutting down")
 	if p.cache != nil {
 		p.cache.Close()
+	}
+	if p.clientLimiter != nil {
+		p.clientLimiter.Close()
 	}
 	return nil
 }
@@ -368,10 +565,20 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 		query = query[:maxGeocodeQueryLen]
 	}
 
-	provider := p.getProvider()
+	// Per-client / per-user rate limiting
+	if p.isClientRateLimitEnabled() && p.clientLimiter != nil {
+		clientKey := getClientKey(c)
+		if !p.clientLimiter.Allow(clientKey) {
+			c.Response().Header().Set("Retry-After", "1")
+			return echo.NewHTTPError(http.StatusTooManyRequests, "Geocoding rate limit exceeded. Please wait a moment before searching again.")
+		}
+	}
 
-	// Check cache first
-	if cached, found := p.cache.Get(provider, query); found {
+	provider := p.getProvider()
+	lang := resolveLanguage(c)
+
+	// Check cache first (partitioned by provider, lang, and query)
+	if cached, found := p.cache.Get(provider, query, lang); found {
 		return c.JSON(http.StatusOK, cached)
 	}
 
@@ -386,9 +593,9 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 	case "google":
 		results, err = p.searchGooglePlaces(query, reqCtx)
 	case "nominatim":
-		results, err = p.searchNominatim(query, reqCtx)
+		results, err = p.searchNominatim(query, lang, reqCtx)
 	default: // "photon"
-		results, err = p.searchPhoton(query, reqCtx)
+		results, err = p.searchPhoton(query, lang, reqCtx)
 	}
 
 	if err != nil {
@@ -397,12 +604,12 @@ func (p *MapsPlugin) handleGeocodeSearch(c *echo.Context) error {
 	}
 
 	// Cache both positive results and empty results (negative caching with shorter TTL)
-	p.cache.Set(provider, query, results)
+	p.cache.Set(provider, query, results, lang)
 
 	return c.JSON(http.StatusOK, results)
 }
 
-func (p *MapsPlugin) searchPhoton(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
+func (p *MapsPlugin) searchPhoton(query, lang string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
 	reqCtx := context.Background()
 	if len(ctx) > 0 && ctx[0] != nil {
 		reqCtx = ctx[0]
@@ -425,6 +632,9 @@ func (p *MapsPlugin) searchPhoton(query string, ctx ...context.Context) ([]Geoco
 	q := u.Query()
 	q.Set("q", query)
 	q.Set("limit", "6")
+	if lang != "" {
+		q.Set("lang", lang)
+	}
 	u.RawQuery = q.Encode()
 
 	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
@@ -613,7 +823,7 @@ func (p *MapsPlugin) searchGooglePlaces(query string, ctx ...context.Context) ([
 	return suggestions, nil
 }
 
-func (p *MapsPlugin) searchNominatim(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
+func (p *MapsPlugin) searchNominatim(query, lang string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
 	reqCtx := context.Background()
 	if len(ctx) > 0 && ctx[0] != nil {
 		reqCtx = ctx[0]
@@ -651,7 +861,11 @@ func (p *MapsPlugin) searchNominatim(query string, ctx ...context.Context) ([]Ge
 	}
 	req.Header.Set("User-Agent", userAgent)
 	req.Header.Set("Accept", "application/json")
-	req.Header.Set("Accept-Language", "en")
+	if lang != "" {
+		req.Header.Set("Accept-Language", lang)
+	} else {
+		req.Header.Set("Accept-Language", "en")
+	}
 
 	resp, err := p.httpClient.Do(req)
 	if err != nil {

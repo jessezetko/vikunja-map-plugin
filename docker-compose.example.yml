@@ -21,6 +21,8 @@ services:
       VIKUNJA_PLUGINS_MAPS_GEOCODER_PROVIDER: "photon" # 'photon' (default), 'nominatim', or 'google'
       # VIKUNJA_PLUGINS_MAPS_PHOTON_URL: "https://photon.komoot.io"
       # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
+      # VIKUNJA_PLUGINS_MAPS_LANG: "en"
+      # VIKUNJA_PLUGINS_MAPS_CLIENT_RATE_LIMIT: "5"
       # CARTO_BASEMAPS_API_KEY: ""
     ports:
       - "3456:3456"
