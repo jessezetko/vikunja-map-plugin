@@ -73,9 +73,10 @@ jobs:
           cd vikunja
           git apply ../plugin/vikunja-core-maps.patch
           cp ../plugin/frontend/src/components/tasks/partials/LocationSearchField.spec.ts frontend/src/components/tasks/partials/LocationSearchField.spec.ts
+          cp ../plugin/frontend/src/components/project/views/ProjectViewMap.spec.ts frontend/src/components/project/views/ProjectViewMap.spec.ts
           cd frontend
           pnpm install --frozen-lockfile
-          pnpm test:unit LocationSearchField.spec.ts --run
+          pnpm test:unit LocationSearchField.spec.ts ProjectViewMap.spec.ts --run
 
   verify-installer:
     name: Verify Installer

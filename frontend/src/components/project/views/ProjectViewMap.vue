@@ -152,6 +152,7 @@ import {getProjectLocations, type TaskLocation} from '@/client/queries/maps'
 import {error} from '@/message'
 import {useTaskList} from '@/composables/useTaskList'
 import {useColorScheme} from '@/composables/useColorScheme'
+import {getHexColor} from '@/helpers/task'
 
 const props = withDefaults(defineProps<{
 	projectId: number
@@ -215,12 +216,15 @@ const tileAttribution = computed(() => {
 	return '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
 })
 
-const customMarkerIcon = computed(() => {
-	const primaryColor = isDark.value ? '#3a86ff' : '#1976d2'
+function getMarkerIcon(taskHexColor?: string): L.DivIcon {
+	const validColor = getHexColor(taskHexColor)
+	const safeColor = validColor && /^#[0-9a-fA-F]{3,8}$/i.test(validColor) ? validColor : undefined
+	const pinColor = safeColor || (isDark.value ? '#3a86ff' : '#1976d2')
+
 	return L.divIcon({
 		className: 'custom-map-pin',
 		html: `<div style="
-			background-color: ${primaryColor};
+			background-color: ${pinColor};
 			width: 30px;
 			height: 30px;
 			border-radius: 50% 50% 50% 0;
@@ -241,7 +245,7 @@ const customMarkerIcon = computed(() => {
 		iconAnchor: [15, 30],
 		popupAnchor: [0, -30],
 	})
-})
+}
 
 async function fetchLocations() {
 	if (!props.projectId) return
@@ -314,7 +318,7 @@ function renderMarkers() {
 		})
 		popupEl.appendChild(openBtn)
 
-		const marker = L.marker(coords, {icon: customMarkerIcon.value}).bindPopup(popupEl)
+		const marker = L.marker(coords, {icon: getMarkerIcon(task.hex_color)}).bindPopup(popupEl)
 		marker.addTo(markersLayer)
 		if (task.id) {
 			markerByTaskId.set(task.id, marker)
@@ -357,7 +361,7 @@ function tryInitAndRender() {
 	}
 }
 
-watch([tileLayerUrl, tileAttribution], ([newUrl]) => {
+watch([tileLayerUrl, tileAttribution, isDark], ([newUrl]) => {
 	if (currentTileLayer) {
 		currentTileLayer.setUrl(newUrl)
 	}
