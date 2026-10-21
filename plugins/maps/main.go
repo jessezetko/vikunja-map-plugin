@@ -332,6 +332,30 @@ func (l *clientRateLimiter) Close() {
 	})
 }
 
+func (l *clientRateLimiter) Reconfigure(rate, burst float64) {
+	l.Lock()
+	defer l.Unlock()
+	l.rate = rate
+	l.burst = burst
+	for _, b := range l.buckets {
+		if b.tokens > burst {
+			b.tokens = burst
+		}
+	}
+}
+
+func (l *clientRateLimiter) Rate() float64 {
+	l.Lock()
+	defer l.Unlock()
+	return l.rate
+}
+
+func (l *clientRateLimiter) Burst() float64 {
+	l.Lock()
+	defer l.Unlock()
+	return l.burst
+}
+
 var validLangRegex = regexp.MustCompile(`^[a-zA-Z]{2,5}(-[a-zA-Z0-9]{2,5})?$`)
 
 func resolveLanguage(c *echo.Context) string {
@@ -429,13 +453,14 @@ type MapsPlugin struct {
 	clientLimiter    *clientRateLimiter
 }
 
+var registerEventsOnce sync.Once
+
 var singleton = &MapsPlugin{
 	httpClient:       &http.Client{Timeout: 8 * time.Second},
 	cache:            newGeocodeCache(24*time.Hour, 5*time.Minute, 5000),
 	nominatimLimiter: newRateLimiter(1050 * time.Millisecond),
 	photonLimiter:    newRateLimiter(100 * time.Millisecond),
 	googleLimiter:    newRateLimiter(100 * time.Millisecond),
-	clientLimiter:    newClientRateLimiter(5.0, 15.0),
 }
 
 func NewPlugin() plugins.Plugin {
@@ -469,10 +494,14 @@ func (p *MapsPlugin) getClientRateSettings() (float64, float64) {
 	rate := 5.0
 	burst := 15.0
 	if viper.IsSet("plugins.maps.client_rate_limit") {
-		rate = viper.GetFloat64("plugins.maps.client_rate_limit")
+		if r := viper.GetFloat64("plugins.maps.client_rate_limit"); r > 0 {
+			rate = r
+		}
 	}
 	if viper.IsSet("plugins.maps.client_rate_burst") {
-		burst = viper.GetFloat64("plugins.maps.client_rate_burst")
+		if b := viper.GetFloat64("plugins.maps.client_rate_burst"); b > 0 {
+			burst = b
+		}
 	}
 	return rate, burst
 }
@@ -485,11 +514,20 @@ func (p *MapsPlugin) Init() error {
 		rate, burst := p.getClientRateSettings()
 		if p.clientLimiter == nil || p.clientLimiter.isClosed() {
 			p.clientLimiter = newClientRateLimiter(rate, burst)
+		} else {
+			p.clientLimiter.Reconfigure(rate, burst)
 		}
+	} else {
+		if p.clientLimiter != nil && !p.clientLimiter.isClosed() {
+			p.clientLimiter.Close()
+		}
+		p.clientLimiter = nil
 	}
-	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
-	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
-	events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
+	registerEventsOnce.Do(func() {
+		events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
+		events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
+		events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
+	})
 	log.Infof("Vikunja Maps plugin initialized (provider=%s)", p.getProvider())
 	return nil
 }
@@ -501,6 +539,7 @@ func (p *MapsPlugin) Shutdown() error {
 	}
 	if p.clientLimiter != nil {
 		p.clientLimiter.Close()
+		p.clientLimiter = nil
 	}
 	return nil
 }

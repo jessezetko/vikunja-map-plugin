@@ -122,6 +122,8 @@ environment:
   # VIKUNJA_PLUGINS_MAPS_LANG: "en"
   # Per-client / per-user rate limit (requests per second, default: 5, 0 to disable)
   # VIKUNJA_PLUGINS_MAPS_CLIENT_RATE_LIMIT: "5"
+  # Optional client rate burst capacity (default: 15)
+  # VIKUNJA_PLUGINS_MAPS_CLIENT_RATE_BURST: "15"
   # Optional CARTO basemaps API key (required ONLY if using CARTO tiles instead of OpenStreetMap)
   # CARTO_BASEMAPS_API_KEY: "your-carto-key"
 ```
@@ -139,6 +141,7 @@ plugins:
     # google_api_key: 'AIzaSy...'
     # lang: 'en' # Optional language code for Photon/Nominatim
     # client_rate_limit: 5 # Per-client req/s (0 to disable)
+    # client_rate_burst: 15 # Optional per-client burst capacity (default: 15)
 ```
 
 ---

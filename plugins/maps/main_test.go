@@ -182,6 +182,170 @@ func TestClientRateLimiter(t *testing.T) {
 	assert.True(t, limiter.Allow(client), "client should be allowed after token refill")
 }
 
+func TestClientRateLimiterReconfigure(t *testing.T) {
+	limiter := newClientRateLimiter(10.0, 5.0)
+	defer limiter.Close()
+
+	assert.Equal(t, 10.0, limiter.Rate())
+	assert.Equal(t, 5.0, limiter.Burst())
+
+	client := "user:reconfig"
+	// Consume all 5 tokens
+	for i := 0; i < 5; i++ {
+		assert.True(t, limiter.Allow(client))
+	}
+	assert.False(t, limiter.Allow(client))
+
+	// Reconfigure to rate 1.0 and burst 2.0
+	limiter.Reconfigure(1.0, 2.0)
+	assert.Equal(t, 1.0, limiter.Rate())
+	assert.Equal(t, 2.0, limiter.Burst())
+
+	// Wait for refill: at 1 req/s, 1100ms refills 1 token
+	time.Sleep(1100 * time.Millisecond)
+	assert.True(t, limiter.Allow(client))
+	// Next request immediately fails
+	assert.False(t, limiter.Allow(client))
+}
+
+func TestPluginInitAppliesConfiguredRateLimits(t *testing.T) {
+	t.Cleanup(func() {
+		viper.Set("plugins.maps.client_rate_limit", nil)
+		viper.Set("plugins.maps.client_rate_burst", nil)
+	})
+
+	// Configure non-default rate and burst
+	viper.Set("plugins.maps.client_rate_limit", 2.0)
+	viper.Set("plugins.maps.client_rate_burst", 3.0)
+
+	plugin := &MapsPlugin{}
+	err := plugin.Init()
+	require.NoError(t, err)
+	defer plugin.Shutdown()
+
+	require.NotNil(t, plugin.clientLimiter, "clientLimiter must be initialized after Init()")
+	assert.Equal(t, 2.0, plugin.clientLimiter.Rate(), "limiter rate must match configuration")
+	assert.Equal(t, 3.0, plugin.clientLimiter.Burst(), "limiter burst must match configuration")
+
+	client := "user:custom-rate"
+	// Configured burst of 3 should allow exactly 3 requests
+	assert.True(t, plugin.clientLimiter.Allow(client))
+	assert.True(t, plugin.clientLimiter.Allow(client))
+	assert.True(t, plugin.clientLimiter.Allow(client))
+
+	// 4th request must be throttled
+	assert.False(t, plugin.clientLimiter.Allow(client), "exceeding configured burst of 3 must throttle")
+
+	// Wait 600ms at 2 req/s: refills > 1 token
+	time.Sleep(600 * time.Millisecond)
+	assert.True(t, plugin.clientLimiter.Allow(client), "token should refill at configured rate")
+}
+
+func TestPluginInitReconfigureExistingLimiter(t *testing.T) {
+	t.Cleanup(func() {
+		viper.Set("plugins.maps.client_rate_limit", nil)
+		viper.Set("plugins.maps.client_rate_burst", nil)
+	})
+
+	// Initial configuration
+	viper.Set("plugins.maps.client_rate_limit", 10.0)
+	viper.Set("plugins.maps.client_rate_burst", 10.0)
+
+	plugin := &MapsPlugin{}
+	err := plugin.Init()
+	require.NoError(t, err)
+	defer plugin.Shutdown()
+
+	require.NotNil(t, plugin.clientLimiter)
+	assert.Equal(t, 10.0, plugin.clientLimiter.Rate())
+	assert.Equal(t, 10.0, plugin.clientLimiter.Burst())
+
+	// Reconfigure via viper and re-run Init()
+	viper.Set("plugins.maps.client_rate_limit", 1.0)
+	viper.Set("plugins.maps.client_rate_burst", 2.0)
+
+	err = plugin.Init()
+	require.NoError(t, err)
+
+	assert.Equal(t, 1.0, plugin.clientLimiter.Rate())
+	assert.Equal(t, 2.0, plugin.clientLimiter.Burst())
+
+	client := "user:reinit"
+	// Now only 2 requests should be permitted in burst
+	assert.True(t, plugin.clientLimiter.Allow(client))
+	assert.True(t, plugin.clientLimiter.Allow(client))
+	assert.False(t, plugin.clientLimiter.Allow(client), "3rd request must be throttled under new burst of 2")
+}
+
+func TestPluginInitRateLimitDisabled(t *testing.T) {
+	t.Cleanup(func() {
+		viper.Set("plugins.maps.client_rate_limit", nil)
+		viper.Set("plugins.maps.client_rate_burst", nil)
+	})
+
+	viper.Set("plugins.maps.client_rate_limit", 0)
+
+	plugin := &MapsPlugin{}
+	err := plugin.Init()
+	require.NoError(t, err)
+	defer plugin.Shutdown()
+
+	assert.False(t, plugin.isClientRateLimitEnabled())
+	assert.Nil(t, plugin.clientLimiter, "clientLimiter must be nil when disabled")
+}
+
+func TestGeocodeEndpointEnforcesConfiguredRateLimit(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[]}`))
+	}))
+	defer server.Close()
+
+	t.Cleanup(func() {
+		viper.Set("plugins.maps.photon_url", nil)
+		viper.Set("plugins.maps.client_rate_limit", nil)
+		viper.Set("plugins.maps.client_rate_burst", nil)
+	})
+
+	viper.Set("plugins.maps.photon_url", server.URL)
+	// Set strict burst of 1 and rate of 0.5 req/s
+	viper.Set("plugins.maps.client_rate_limit", 0.5)
+	viper.Set("plugins.maps.client_rate_burst", 1.0)
+
+	plugin := &MapsPlugin{
+		httpClient: server.Client(),
+	}
+	err := plugin.Init()
+	require.NoError(t, err)
+	defer plugin.Shutdown()
+
+	e := echo.New()
+
+	// 1st request should succeed
+	req1 := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/geocode?q=paris", nil)
+	req1.RemoteAddr = "192.168.1.100:12345"
+	rec1 := httptest.NewRecorder()
+	c1 := e.NewContext(req1, rec1)
+
+	err = plugin.handleGeocodeSearch(c1)
+	require.NoError(t, err)
+	assert.Equal(t, http.StatusOK, rec1.Code)
+
+	// 2nd request immediately from same client IP should be rate-limited (HTTP 429)
+	req2 := httptest.NewRequest(http.MethodGet, "/api/v1/plugins/maps/geocode?q=london", nil)
+	req2.RemoteAddr = "192.168.1.100:12345"
+	rec2 := httptest.NewRecorder()
+	c2 := e.NewContext(req2, rec2)
+
+	err = plugin.handleGeocodeSearch(c2)
+	require.Error(t, err)
+	httpErr, ok := err.(*echo.HTTPError)
+	require.True(t, ok)
+	assert.Equal(t, http.StatusTooManyRequests, httpErr.Code)
+	assert.Equal(t, "1", rec2.Header().Get("Retry-After"))
+}
+
 func TestSearchPhotonLanguageParam(t *testing.T) {
 	var capturedLang string
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
