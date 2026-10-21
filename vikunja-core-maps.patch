@@ -11,7 +11,7 @@ index 469ce5e..15c237a 100644
  
  # pnpm
 diff --git a/frontend/package.json b/frontend/package.json
-index 3af3a28..55a3563 100644
+index da5f843..fc8acdd 100644
 --- a/frontend/package.json
 +++ b/frontend/package.json
 @@ -90,6 +90,7 @@
@@ -31,7 +31,7 @@ index 3af3a28..55a3563 100644
      "@types/sortablejs": "1.15.9",
      "@types/ws": "8.18.1",
 diff --git a/frontend/pnpm-lock.yaml b/frontend/pnpm-lock.yaml
-index bec42a0..97d99b2 100644
+index 3965ee3..3fdf4dd 100644
 --- a/frontend/pnpm-lock.yaml
 +++ b/frontend/pnpm-lock.yaml
 @@ -139,6 +139,9 @@ importers:
@@ -54,7 +54,7 @@ index bec42a0..97d99b2 100644
        '@types/node':
          specifier: 24.13.4
          version: 24.13.4
-@@ -2779,6 +2785,9 @@ packages:
+@@ -2776,6 +2782,9 @@ packages:
    '@types/gensync@1.0.5':
      resolution: {integrity: sha512-MbsRCT7mTikHwKZ0X+LVUTLRrZZRLipTuXEO9qOYO+zmjMVk81axyClMROf6uoPD9MRVu46bx8zoR0Ad9q3NAg==}
  
@@ -64,7 +64,7 @@ index bec42a0..97d99b2 100644
    '@types/hast@3.0.5':
      resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
  
-@@ -2794,6 +2803,9 @@ packages:
+@@ -2791,6 +2800,9 @@ packages:
    '@types/jsonfile@6.1.4':
      resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
  
@@ -74,9 +74,9 @@ index bec42a0..97d99b2 100644
    '@types/linkify-it@5.0.0':
      resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
  
-@@ -4836,6 +4848,9 @@ packages:
-   launch-editor@2.14.1:
-     resolution: {integrity: sha512-QWBrQsMpH7gPr965dsKD/3cKWiNoTjpATQf++Xq63N6sKRGMwlVXz41O1IZTMfZQgBctD/K5Zt06+/I6pP6+HA==}
+@@ -4795,6 +4807,9 @@ packages:
+   launch-editor@2.14.2:
+     resolution: {integrity: sha512-NHJEb30MGBCkmZXLZwz25t37QR4aY03ZzPYUJXOJaOa92uWwExI9SBQUuIznBYc1xkD7cJNGX7oc3Nl3sq2kQQ==}
  
 +  leaflet@1.9.4:
 +    resolution: {integrity: sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA==}
@@ -84,7 +84,7 @@ index bec42a0..97d99b2 100644
    leven@3.1.0:
      resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
      engines: {node: '>=6'}
-@@ -9704,6 +9719,8 @@ snapshots:
+@@ -9679,6 +9694,8 @@ snapshots:
  
    '@types/gensync@1.0.5': {}
  
@@ -93,7 +93,7 @@ index bec42a0..97d99b2 100644
    '@types/hast@3.0.5':
      dependencies:
        '@types/unist': 3.0.3
-@@ -9718,6 +9735,10 @@ snapshots:
+@@ -9693,6 +9710,10 @@ snapshots:
      dependencies:
        '@types/node': 24.13.4
  
@@ -103,10 +103,10 @@ index bec42a0..97d99b2 100644
 +
    '@types/linkify-it@5.0.0': {}
  
-   '@types/markdown-it@14.1.2':
-@@ -12052,6 +12073,8 @@ snapshots:
+   '@types/markdown-it@14.2.0':
+@@ -11983,6 +12004,8 @@ snapshots:
        picocolors: 1.1.1
-       shell-quote: 1.10.0
+       shell-quote: 1.12.0
  
 +  leaflet@1.9.4: {}
 +
@@ -1527,7 +1527,7 @@ index 3ac1017..915d716 100644
  
  export const DEFAULT_PROJECT_VIEW_SETTINGS = {
 diff --git a/frontend/src/i18n/lang/en.json b/frontend/src/i18n/lang/en.json
-index cfc63af..1850f69 100644
+index 3d47016..02e186c 100644
 --- a/frontend/src/i18n/lang/en.json
 +++ b/frontend/src/i18n/lang/en.json
 @@ -611,6 +611,13 @@
@@ -1544,7 +1544,7 @@ index cfc63af..1850f69 100644
      "pseudo": {
        "favorites": {
          "title": "Favorites"
-@@ -1085,6 +1092,21 @@
+@@ -1086,6 +1093,21 @@
      }
    },
    "task": {
@@ -1566,7 +1566,7 @@ index cfc63af..1850f69 100644
      "new": "Create a task",
      "createSuccess": "The task was successfully created.",
      "bulkCreateUnexpectedResponse": "The server returned an unexpected number of created tasks.",
-@@ -1161,6 +1183,7 @@
+@@ -1162,6 +1184,7 @@
          "moveProject": "Move",
          "duplicate": "Duplicate",
          "color": "Set Color",
@@ -1574,7 +1574,7 @@ index cfc63af..1850f69 100644
          "delete": "Delete",
          "favorite": "Add to Favorites",
          "unfavorite": "Remove from Favorites"
-@@ -1169,6 +1192,7 @@
+@@ -1170,6 +1193,7 @@
      "attributes": {
        "assignees": "Assignees",
        "color": "Color",
@@ -1701,31 +1701,8 @@ index dab1144..1ff2c2f 100644
  	moveProject: null,
  	percentDone: null,
  	priority: null,
-diff --git a/pkg/db/db.go b/pkg/db/db.go
-index 415d14c..36d85f8 100644
---- a/pkg/db/db.go
-+++ b/pkg/db/db.go
-@@ -219,12 +219,14 @@ func getPostgreSQLConnectionString(dbHost, dbUser, dbPasswd, dbName, dbSchema, d
- 		dbParam = "&"
- 	}
- 	host, port := parsePostgreSQLHostPort(dbHost)
-+	// PathEscape leaves '@' and ':' alone, which pgx then reads as userinfo delimiters.
-+	userInfo := url.UserPassword(dbUser, dbPasswd).String()
- 	if host[0] == '/' { // looks like a unix socket
--		connStr = fmt.Sprintf("postgres://%s:%s@:%s/%s%ssslmode=%s&sslcert=%s&sslkey=%s&sslrootcert=%s&host=%s",
--			url.PathEscape(dbUser), url.PathEscape(dbPasswd), port, dbName, dbParam, dbSslMode, dbSslCert, dbSslKey, dbSslRootCert, host)
-+		connStr = fmt.Sprintf("postgres://%s@:%s/%s%ssslmode=%s&sslcert=%s&sslkey=%s&sslrootcert=%s&host=%s",
-+			userInfo, port, dbName, dbParam, dbSslMode, dbSslCert, dbSslKey, dbSslRootCert, host)
- 	} else {
--		connStr = fmt.Sprintf("postgres://%s:%s@%s:%s/%s%ssslmode=%s&sslcert=%s&sslkey=%s&sslrootcert=%s",
--			url.PathEscape(dbUser), url.PathEscape(dbPasswd), host, port, dbName, dbParam, dbSslMode, dbSslCert, dbSslKey, dbSslRootCert)
-+		connStr = fmt.Sprintf("postgres://%s@%s:%s/%s%ssslmode=%s&sslcert=%s&sslkey=%s&sslrootcert=%s",
-+			userInfo, host, port, dbName, dbParam, dbSslMode, dbSslCert, dbSslKey, dbSslRootCert)
- 	}
- 	// Pin search_path so raw SQL resolves to the same schema as xorm-built statements (#3118).
- 	// Quoting preserves case; public stays so extension operators (e.g. ParadeDB's |||) keep resolving.
 diff --git a/pkg/models/project_view.go b/pkg/models/project_view.go
-index 5134e0e..c2e4496 100644
+index 4fe4abd..e2f5cd0 100644
 --- a/pkg/models/project_view.go
 +++ b/pkg/models/project_view.go
 @@ -44,6 +44,8 @@ func (p *ProjectViewKind) MarshalJSON() ([]byte, error) {
@@ -1773,7 +1750,7 @@ index 5134e0e..c2e4496 100644
 +	ViewKind ProjectViewKind `xorm:"not null" json:"view_kind" swaggertype:"string" enums:"list,gantt,table,kanban,map" doc:"The kind of this view. One of list, gantt, table, kanban or map."`
  
  	// The filter query to match tasks by. Check out https://vikunja.io/docs/filters for a full explanation.
- 	Filter *TaskCollection `xorm:"json null default null" query:"filter" json:"filter" doc:"The filter query used to match tasks shown in this view. See https://vikunja.io/docs/filters."`
+ 	Filter *TaskCollection `xorm:"json null default null" query:"filter" json:"filter" doc:"The filter query used to match tasks shown in this view. Combine conditions with && or || (not and/or) and group them with parentheses. Operators: =, !=, >, >=, <, <=, like, in, not in. See https://vikunja.io/docs/filters."`
 diff --git a/pkg/plugins/yaegi/loader_test.go b/pkg/plugins/yaegi/loader_test.go
 index 964c638..35979cb 100644
 --- a/pkg/plugins/yaegi/loader_test.go
