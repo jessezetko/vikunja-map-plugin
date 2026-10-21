@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: go-vikunja/vikunja
-          ref: v2.7.0
+          ref: v2.7.1
           path: vikunja
 
       - name: Set up Go
@@ -55,7 +55,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: go-vikunja/vikunja
-          ref: v2.7.0
+          ref: v2.7.1
           path: vikunja
 
       - name: Set up Node.js
@@ -86,9 +86,9 @@ jobs:
         with:
           path: plugin
 
-      - name: Clone Vikunja v2.7.0
+      - name: Clone Vikunja v2.7.1
         run: |
-          git clone --depth 1 --branch v2.7.0 https://github.com/go-vikunja/vikunja.git vikunja
+          git clone --depth 1 --branch v2.7.1 https://github.com/go-vikunja/vikunja.git vikunja
 
       - name: Run install.sh
         run: |
@@ -121,7 +121,7 @@ jobs:
           images: ghcr.io/${{ github.repository }}
           tags: |
             type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=v2.7.0
+            type=raw,value=v2.7.1
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=ref,event=tag
@@ -135,4 +135,4 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           build-args: |
-            VIKUNJA_REF=v2.7.0
+            VIKUNJA_REF=v2.7.1

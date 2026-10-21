@@ -26,8 +26,8 @@ fi
 # Pre-flight check 3: Target revision check
 CURRENT_REF="$(cd "${TARGET_DIR}" && git describe --tags --always 2>/dev/null || echo "unknown")"
 echo "    Target Vikunja revision: ${CURRENT_REF}"
-if [[ "${CURRENT_REF}" != *"v2.7.0"* ]]; then
-    echo "    Notice: The maps patch was tested against Vikunja v2.7.0. Current ref is '${CURRENT_REF}'."
+if [[ "${CURRENT_REF}" != *"v2.7.0"* && "${CURRENT_REF}" != *"v2.7.1"* ]]; then
+    echo "    Notice: The maps patch was tested against Vikunja v2.7.0 and v2.7.1. Current ref is '${CURRENT_REF}'."
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"

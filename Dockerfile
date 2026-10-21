@@ -1,7 +1,7 @@
 # Multi-stage Dockerfile to build Vikunja with the Maps & Location Plugin
 # No local Go or Node.js toolchain required on the host.
 
-ARG VIKUNJA_REF=v2.7.0
+ARG VIKUNJA_REF=v2.7.1
 
 # Stage 1: Build Frontend with Leaflet and Maps Components
 FROM node:24-alpine AS frontend-builder
