@@ -95,6 +95,155 @@ func TestGeocodeCache(t *testing.T) {
 	assert.LessOrEqual(t, entryCount, 3, "cache should not exceed maxEntries")
 }
 
+func TestGeocodeCacheLRUEviction(t *testing.T) {
+	cache := newGeocodeCache(10*time.Minute, 5*time.Minute, 3)
+	defer cache.Close()
+
+	s1 := []GeocodeSuggestion{{DisplayName: "Item 1"}}
+	s2 := []GeocodeSuggestion{{DisplayName: "Item 2"}}
+	s3 := []GeocodeSuggestion{{DisplayName: "Item 3"}}
+	s4 := []GeocodeSuggestion{{DisplayName: "Item 4"}}
+
+	// Add 3 entries to reach capacity: insertion order 1, 2, 3
+	cache.Set("p", "q1", s1)
+	cache.Set("p", "q2", s2)
+	cache.Set("p", "q3", s3)
+
+	// Access q1, which moves q1 to the front of LRU.
+	// Order from MRU to LRU is now: q1, q3, q2. Thus q2 is LRU.
+	cached, found := cache.Get("p", "q1")
+	assert.True(t, found)
+	require.Len(t, cached, 1)
+
+	// Insert q4, which should evict LRU (q2)
+	cache.Set("p", "q4", s4)
+
+	// q1 should still be present
+	_, found = cache.Get("p", "q1")
+	assert.True(t, found, "recently accessed q1 should NOT be evicted")
+
+	// q2 should have been evicted
+	_, found = cache.Get("p", "q2")
+	assert.False(t, found, "least recently used q2 should have been evicted")
+
+	// q3 and q4 should be present
+	_, found = cache.Get("p", "q3")
+	assert.True(t, found, "q3 should still be in cache")
+	_, found = cache.Get("p", "q4")
+	assert.True(t, found, "q4 should be in cache")
+}
+
+func TestGeocodeCacheLanguagePartitioning(t *testing.T) {
+	cache := newGeocodeCache(10*time.Minute, 5*time.Minute, 100)
+	defer cache.Close()
+
+	enResult := []GeocodeSuggestion{{DisplayName: "Munich, Germany"}}
+	deResult := []GeocodeSuggestion{{DisplayName: "München, Deutschland"}}
+
+	cache.Set("photon", "munich", enResult, "en")
+	cache.Set("photon", "munich", deResult, "de")
+
+	cachedEn, foundEn := cache.Get("photon", "munich", "en")
+	assert.True(t, foundEn)
+	require.Len(t, cachedEn, 1)
+	assert.Equal(t, "Munich, Germany", cachedEn[0].DisplayName)
+
+	cachedDe, foundDe := cache.Get("photon", "munich", "de")
+	assert.True(t, foundDe)
+	require.Len(t, cachedDe, 1)
+	assert.Equal(t, "München, Deutschland", cachedDe[0].DisplayName)
+
+	// Unspecified/default lang should not collide
+	_, foundDefault := cache.Get("photon", "munich")
+	assert.False(t, foundDefault)
+}
+
+func TestClientRateLimiter(t *testing.T) {
+	// 5 tokens/sec, burst capacity of 3
+	limiter := newClientRateLimiter(5.0, 3.0)
+	defer limiter.Close()
+
+	client := "user:42"
+
+	// Initial burst of 3 should all succeed
+	assert.True(t, limiter.Allow(client))
+	assert.True(t, limiter.Allow(client))
+	assert.True(t, limiter.Allow(client))
+
+	// 4th request immediately should exceed burst and fail
+	assert.False(t, limiter.Allow(client), "request exceeding burst must be throttled")
+
+	// Independent client should not be affected
+	otherClient := "user:99"
+	assert.True(t, limiter.Allow(otherClient), "different client must have its own token bucket")
+
+	// Wait for token refill (250ms at 5 req/s refills > 1 token)
+	time.Sleep(250 * time.Millisecond)
+	assert.True(t, limiter.Allow(client), "client should be allowed after token refill")
+}
+
+func TestSearchPhotonLanguageParam(t *testing.T) {
+	var capturedLang string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedLang = r.URL.Query().Get("lang")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"type":"FeatureCollection","features":[]}`))
+	}))
+	defer server.Close()
+
+	viper.Set("plugins.maps.photon_url", server.URL)
+	defer viper.Set("plugins.maps.photon_url", "")
+
+	plugin := &MapsPlugin{
+		httpClient:    server.Client(),
+		cache:         newGeocodeCache(time.Minute, time.Minute, 100),
+		photonLimiter: newRateLimiter(time.Millisecond),
+	}
+	defer plugin.cache.Close()
+
+	_, err := plugin.searchPhoton("tokyo", "en")
+	require.NoError(t, err)
+	assert.Equal(t, "en", capturedLang)
+
+	_, err = plugin.searchPhoton("tokyo", "de")
+	require.NoError(t, err)
+	assert.Equal(t, "de", capturedLang)
+
+	_, err = plugin.searchPhoton("tokyo", "")
+	require.NoError(t, err)
+	assert.Empty(t, capturedLang)
+}
+
+func TestSearchNominatimLanguageHeader(t *testing.T) {
+	var capturedAcceptLang string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		capturedAcceptLang = r.Header.Get("Accept-Language")
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`[]`))
+	}))
+	defer server.Close()
+
+	viper.Set("plugins.maps.nominatim_url", server.URL)
+	defer viper.Set("plugins.maps.nominatim_url", "")
+
+	plugin := &MapsPlugin{
+		httpClient:       server.Client(),
+		cache:            newGeocodeCache(time.Minute, time.Minute, 100),
+		nominatimLimiter: newRateLimiter(time.Millisecond),
+	}
+	defer plugin.cache.Close()
+
+	_, err := plugin.searchNominatim("london", "fr")
+	require.NoError(t, err)
+	assert.Equal(t, "fr", capturedAcceptLang)
+
+	_, err = plugin.searchNominatim("london", "")
+	require.NoError(t, err)
+	assert.Equal(t, "en", capturedAcceptLang, "default fallback should be en")
+}
+
 func TestNominatimRateLimiter(t *testing.T) {
 	interval := 50 * time.Millisecond
 	limiter := newRateLimiter(interval)
@@ -163,7 +312,7 @@ func TestSearchPhotonParsing(t *testing.T) {
 	}
 	defer plugin.cache.Close()
 
-	results, err := plugin.searchPhoton("eiffel")
+	results, err := plugin.searchPhoton("eiffel", "")
 	require.NoError(t, err)
 	// Invalid out-of-bounds coordinates must be filtered out
 	require.Len(t, results, 1)
@@ -222,7 +371,7 @@ func TestSearchNominatimParsing(t *testing.T) {
 	}
 	defer plugin.cache.Close()
 
-	results, err := plugin.searchNominatim("big ben")
+	results, err := plugin.searchNominatim("big ben", "")
 	require.NoError(t, err)
 	// Malformed and out-of-bounds coords must be rejected, not emitted as 0,0
 	require.Len(t, results, 1)

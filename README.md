@@ -57,6 +57,8 @@ Your custom Vikunja instance with the Maps plugin will be downloaded and accessi
 
 A nightly automated workflow checks for new upstream Vikunja releases, verifies patch compatibility, and publishes updated images to GHCR.
 
+> **Note on Image Versioning**: The published `latest` container image (`ghcr.io/jessezetko/vikunja-map-plugin:latest`) tracks the latest successfully verified and integrated Vikunja release, ensuring running instances do not break on unexpected upstream changes. Self-hosters can also pin to versioned release tags (e.g., `ghcr.io/jessezetko/vikunja-map-plugin:v0.3.0`).
+
 To update your running instance to the latest supported version:
 ```bash
 docker compose pull vikunja
@@ -116,6 +118,10 @@ environment:
   # VIKUNJA_PLUGINS_MAPS_PHOTON_URL: "https://photon.komoot.io" # or http://photon:2322
   # VIKUNJA_PLUGINS_MAPS_NOMINATIM_URL: "https://nominatim.openstreetmap.org"
   # VIKUNJA_PLUGINS_MAPS_GOOGLE_API_KEY: "AIzaSy..."
+  # Optional language localization for Photon/Nominatim (e.g., "en", "de", "fr")
+  # VIKUNJA_PLUGINS_MAPS_LANG: "en"
+  # Per-client / per-user rate limit (requests per second, default: 5, 0 to disable)
+  # VIKUNJA_PLUGINS_MAPS_CLIENT_RATE_LIMIT: "5"
   # Optional CARTO basemaps API key (required ONLY if using CARTO tiles instead of OpenStreetMap)
   # CARTO_BASEMAPS_API_KEY: "your-carto-key"
 ```
@@ -131,6 +137,8 @@ plugins:
     # photon_url: 'https://photon.komoot.io' # or custom self-hosted URL
     # nominatim_url: 'https://nominatim.openstreetmap.org'
     # google_api_key: 'AIzaSy...'
+    # lang: 'en' # Optional language code for Photon/Nominatim
+    # client_rate_limit: 5 # Per-client req/s (0 to disable)
 ```
 
 ---
@@ -140,7 +148,7 @@ plugins:
 ### 1. Adding a Location to a Task
 1. Open any task in Vikunja to view the task detail modal.
 2. In the right-hand sidebar under **Attributes**, click **Set Location** (pin icon).
-3. Type an address, landmark, or city into the search input. Suggestions appear automatically via Nominatim or Google Places:
+3. Type an address, landmark, or city into the search input. Suggestions appear automatically as you type via **Photon** (default) or **Google Places**. When configured with **Nominatim**, autocomplete-as-you-type is disabled to comply with OSMF usage policy; press **Enter** or click **Search** to view results:
 
 ![Location Autocomplete Search](docs/images/location-autocomplete.png)
 

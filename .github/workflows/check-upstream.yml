@@ -26,6 +26,12 @@ jobs:
             exit 1
           fi
 
+          # Validate upstream release tag against semantic versioning pattern
+          if ! [[ "$LATEST_TAG" =~ ^v[0-9]+(\.[0-9]+)+(-[0-9A-Za-z.-]+)?$ ]]; then
+            echo "Error: Upstream tag '$LATEST_TAG' does not match expected semver tag pattern (e.g. v2.7.1)."
+            exit 1
+          fi
+
           CURRENT_REF=$(grep '^ARG VIKUNJA_REF=' Dockerfile | cut -d '=' -f 2)
           echo "Current version in plugin: $CURRENT_REF"
           echo "Latest upstream version:   $LATEST_TAG"
@@ -132,11 +138,8 @@ jobs:
           # Create bump branch
           git checkout -b "$BRANCH_NAME"
 
-          # Update Dockerfile and CI workflow references
-          sed -i "s/^ARG VIKUNJA_REF=.*/ARG VIKUNJA_REF=${TAG}/" Dockerfile
-          sed -i "s/ref: v[0-9.]\+/ref: ${TAG}/" .github/workflows/ci.yml
-          sed -i "s/VIKUNJA_REF=v[0-9.]\+/VIKUNJA_REF=${TAG}/" .github/workflows/ci.yml
-          sed -i "s/type=raw,value=v[0-9.]\+/type=raw,value=${TAG}/" .github/workflows/ci.yml
+          # Update Dockerfile and CI workflow references using helper script
+          ./scripts/update-vikunja-version.py "${TAG}" "${{ steps.upstream.outputs.current_ref }}"
 
           git add Dockerfile .github/workflows/ci.yml
           git commit -m "chore(deps): bump Vikunja base to ${TAG}"
