@@ -1114,7 +1114,9 @@ func TestCacheDoubleCheckRace(t *testing.T) {
 	cache.Set("p", "key", sampleA)
 	// Force entry to be expired
 	cache.Lock()
-	cache.entries["p:key"] = cacheEntry{
+	entryKey := cache.makeKey("p", "key")
+	cache.entries[entryKey] = &cacheEntry{
+		key:         entryKey,
 		suggestions: sampleA,
 		expiresAt:   time.Now().Add(-1 * time.Second),
 	}
