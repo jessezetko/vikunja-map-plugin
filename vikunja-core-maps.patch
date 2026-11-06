@@ -11,7 +11,7 @@ index 469ce5e..15c237a 100644
  
  # pnpm
 diff --git a/frontend/package.json b/frontend/package.json
-index da5f843..fc8acdd 100644
+index 81770d3..83c7ad7 100644
 --- a/frontend/package.json
 +++ b/frontend/package.json
 @@ -90,6 +90,7 @@
@@ -27,14 +27,14 @@ index da5f843..fc8acdd 100644
      "@types/codemirror": "5.60.18",
      "@types/is-touch-device": "1.0.3",
 +    "@types/leaflet": "^1.9.22",
-     "@types/node": "24.13.4",
+     "@types/node": "26.6.6",
      "@types/sortablejs": "1.15.9",
      "@types/ws": "8.18.1",
 diff --git a/frontend/pnpm-lock.yaml b/frontend/pnpm-lock.yaml
-index 3965ee3..3fdf4dd 100644
+index d6b92ca..3071184 100644
 --- a/frontend/pnpm-lock.yaml
 +++ b/frontend/pnpm-lock.yaml
-@@ -139,6 +139,9 @@ importers:
+@@ -298,6 +298,9 @@ importers:
        klona:
          specifier: 2.0.6
          version: 2.0.6
@@ -44,7 +44,7 @@ index 3965ee3..3fdf4dd 100644
        lowlight:
          specifier: 3.3.0
          version: 3.3.0
-@@ -224,6 +227,9 @@ importers:
+@@ -383,6 +386,9 @@ importers:
        '@types/is-touch-device':
          specifier: 1.0.3
          version: 1.0.3
@@ -52,9 +52,9 @@ index 3965ee3..3fdf4dd 100644
 +        specifier: ^1.9.22
 +        version: 1.9.22
        '@types/node':
-         specifier: 24.13.4
-         version: 24.13.4
-@@ -2776,6 +2782,9 @@ packages:
+         specifier: 26.6.6
+         version: 26.6.6
+@@ -3040,6 +3046,9 @@ packages:
    '@types/gensync@1.0.5':
      resolution: {integrity: sha512-MbsRCT7mTikHwKZ0X+LVUTLRrZZRLipTuXEO9qOYO+zmjMVk81axyClMROf6uoPD9MRVu46bx8zoR0Ad9q3NAg==}
  
@@ -64,7 +64,7 @@ index 3965ee3..3fdf4dd 100644
    '@types/hast@3.0.5':
      resolution: {integrity: sha512-rp/ezSWaD1m44dPKICGhiskI13nVr7qTloFwDa/IYkhhf5nzwP+zIQcIJh3WIFSBOy/H1PzB40jPjMDksN4F+g==}
  
-@@ -2791,6 +2800,9 @@ packages:
+@@ -3055,6 +3064,9 @@ packages:
    '@types/jsonfile@6.1.4':
      resolution: {integrity: sha512-D5qGUYwjvnNNextdU59/+fI+spnwtTFmyQP0h+PfIOSkNfpU6AOICUOkm4i0OnSk+NyjdPJrxCDro0sJsWlRpQ==}
  
@@ -74,7 +74,7 @@ index 3965ee3..3fdf4dd 100644
    '@types/linkify-it@5.0.0':
      resolution: {integrity: sha512-sVDA58zAw4eWAffKOaQH5/5j3XeayukzDk+ewSsnv3p4yJEZHCCzMDiZM8e0OUrRvmpGZ85jf4yDHkHsgBNr9Q==}
  
-@@ -4795,6 +4807,9 @@ packages:
+@@ -5067,6 +5079,9 @@ packages:
    launch-editor@2.14.2:
      resolution: {integrity: sha512-NHJEb30MGBCkmZXLZwz25t37QR4aY03ZzPYUJXOJaOa92uWwExI9SBQUuIznBYc1xkD7cJNGX7oc3Nl3sq2kQQ==}
  
@@ -84,7 +84,7 @@ index 3965ee3..3fdf4dd 100644
    leven@3.1.0:
      resolution: {integrity: sha512-qsda+H8jTaUaN/x5vzW2rzc+8Rw4TAQ/4KjB46IwK5VH+IlVeeeje/EoZRpiXvIqjFgK84QffqPztGI3VBLG1A==}
      engines: {node: '>=6'}
-@@ -9679,6 +9694,8 @@ snapshots:
+@@ -9997,6 +10012,8 @@ snapshots:
  
    '@types/gensync@1.0.5': {}
  
@@ -93,9 +93,9 @@ index 3965ee3..3fdf4dd 100644
    '@types/hast@3.0.5':
      dependencies:
        '@types/unist': 3.0.3
-@@ -9693,6 +9710,10 @@ snapshots:
+@@ -10011,6 +10028,10 @@ snapshots:
      dependencies:
-       '@types/node': 24.13.4
+       '@types/node': 26.6.6
  
 +  '@types/leaflet@1.9.22':
 +    dependencies:
@@ -104,7 +104,7 @@ index 3965ee3..3fdf4dd 100644
    '@types/linkify-it@5.0.0': {}
  
    '@types/markdown-it@14.2.0':
-@@ -11983,6 +12004,8 @@ snapshots:
+@@ -12313,6 +12334,8 @@ snapshots:
        picocolors: 1.1.1
        shell-quote: 1.12.0
  
@@ -269,10 +269,10 @@ index 0000000..7343ec8
 +	}
 +}
 diff --git a/frontend/src/components/misc/Icon.ts b/frontend/src/components/misc/Icon.ts
-index 35f2923..a1810d4 100644
+index 7e40647..c015c55 100644
 --- a/frontend/src/components/misc/Icon.ts
 +++ b/frontend/src/components/misc/Icon.ts
-@@ -51,6 +51,8 @@ import {
+@@ -52,6 +52,8 @@ import {
  	faList,
  	faListOl,
  	faLock,
@@ -281,7 +281,7 @@ index 35f2923..a1810d4 100644
  	faMinus,
  	faPaperclip,
  	faPaste,
-@@ -223,6 +225,8 @@ library.add(faCalendarCheck)
+@@ -225,6 +227,8 @@ library.add(faCalendarCheck)
  library.add(faFaceLaugh)
  library.add(faExclamation)
  library.add(faArrowUpRightFromSquare)
@@ -291,10 +291,10 @@ index 35f2923..a1810d4 100644
  // overwriting the wrong types
  export default FontAwesomeIcon as unknown as FontAwesomeIconFixedTypes
 diff --git a/frontend/src/components/project/ProjectWrapper.vue b/frontend/src/components/project/ProjectWrapper.vue
-index c290f76..d54bc92 100644
+index ff6bc2c..ccc2ed0 100644
 --- a/frontend/src/components/project/ProjectWrapper.vue
 +++ b/frontend/src/components/project/ProjectWrapper.vue
-@@ -162,6 +162,8 @@ function getViewTitle(view: ProjectView) {
+@@ -164,6 +164,8 @@ function getViewTitle(view: ProjectView) {
  			return t('project.table.title')
  		case 'Kanban':
  			return t('project.kanban.title')
@@ -1531,11 +1531,11 @@ index 3ac1017..915d716 100644
  
  export const DEFAULT_PROJECT_VIEW_SETTINGS = {
 diff --git a/frontend/src/i18n/lang/en.json b/frontend/src/i18n/lang/en.json
-index 3d47016..02e186c 100644
+index 1ff9657..7790437 100644
 --- a/frontend/src/i18n/lang/en.json
 +++ b/frontend/src/i18n/lang/en.json
-@@ -611,6 +611,13 @@
-       "bucketLimitReached": "You have reached the bucket limit. Remove tasks or increase the limit to add new tasks.",
+@@ -635,6 +635,13 @@
+       "bucketLimitReachedShort": "Limit reached",
        "bucketOptions": "Bucket options"
      },
 +    "map": {
@@ -1548,7 +1548,7 @@ index 3d47016..02e186c 100644
      "pseudo": {
        "favorites": {
          "title": "Favorites"
-@@ -1086,6 +1093,21 @@
+@@ -1111,6 +1118,21 @@
      }
    },
    "task": {
@@ -1570,7 +1570,7 @@ index 3d47016..02e186c 100644
      "new": "Create a task",
      "createSuccess": "The task was successfully created.",
      "bulkCreateUnexpectedResponse": "The server returned an unexpected number of created tasks.",
-@@ -1162,6 +1184,7 @@
+@@ -1183,6 +1205,7 @@
          "moveProject": "Move",
          "duplicate": "Duplicate",
          "color": "Set Color",
@@ -1578,7 +1578,7 @@ index 3d47016..02e186c 100644
          "delete": "Delete",
          "favorite": "Add to Favorites",
          "unfavorite": "Remove from Favorites"
-@@ -1170,6 +1193,7 @@
+@@ -1191,6 +1214,7 @@
      "attributes": {
        "assignees": "Assignees",
        "color": "Color",
@@ -1587,21 +1587,29 @@ index 3d47016..02e186c 100644
        "createdBy": "Created By",
        "description": "Description",
 diff --git a/frontend/src/views/project/ProjectView.vue b/frontend/src/views/project/ProjectView.vue
-index c523579..cc876fe 100644
+index b6461c6..1c8c354 100644
 --- a/frontend/src/views/project/ProjectView.vue
 +++ b/frontend/src/views/project/ProjectView.vue
-@@ -13,8 +13,9 @@ import ProjectList from '@/components/project/views/ProjectList.vue'
- import ProjectGantt from '@/components/project/views/ProjectGantt.vue'
+@@ -15,7 +15,9 @@ import ProjectGantt from '@/components/project/views/ProjectGantt.vue'
  import ProjectTable from '@/components/project/views/ProjectTable.vue'
  import ProjectKanban from '@/components/project/views/ProjectKanban.vue'
+ import ProjectInTrashNotice from '@/components/project/ProjectInTrashNotice.vue'
 +import ProjectViewMap from '@/components/project/views/ProjectViewMap.vue'
  
--import {DEFAULT_PROJECT_VIEW_SETTINGS} from '@/constants/projectView'
-+import {DEFAULT_PROJECT_VIEW_SETTINGS, PROJECT_VIEW_KINDS, type ProjectViewKind} from '@/constants/projectView'
++import {PROJECT_VIEW_KINDS, type ProjectViewKind} from '@/constants/projectView'
  import {saveProjectToHistory} from '@/modules/projectHistory'
+ import {useFocusAfterRemoval} from '@/composables/useFocusAfterRemoval'
  
- const props = defineProps<{
-@@ -128,4 +129,10 @@ watchEffect(() => baseStore.setCurrentProjectViewId(props.viewId))
+@@ -46,7 +48,7 @@ watch(
+ 			baseStore.setCurrentProject(null)
+ 			return
+ 		}
+-		
++
+ 		baseStore.setCurrentProject(newCurrentProject, newViewId)
+ 	}, {
+ 		deep: true,
+@@ -128,4 +130,10 @@ watchEffect(() => baseStore.setCurrentProjectViewId(props.viewId))
  		:is-loading-project="isLoadingProject"
  		:view-id
  	/>
@@ -1613,10 +1621,10 @@ index c523579..cc876fe 100644
 +	/>
  </template>
 diff --git a/frontend/src/views/tasks/TaskDetailView.vue b/frontend/src/views/tasks/TaskDetailView.vue
-index dab1144..1ff2c2f 100644
+index 9fb3b82..a9de030 100644
 --- a/frontend/src/views/tasks/TaskDetailView.vue
 +++ b/frontend/src/views/tasks/TaskDetailView.vue
-@@ -316,6 +316,27 @@
+@@ -338,6 +338,27 @@
  								/>
  							</div>
  						</CustomTransition>
@@ -1644,7 +1652,7 @@ index dab1144..1ff2c2f 100644
  					</div>
  
  					<!-- Labels -->
-@@ -501,6 +522,13 @@
+@@ -523,6 +544,13 @@
  						>
  							{{ $t('task.detail.actions.color') }}
  						</XButton>
@@ -1658,7 +1666,7 @@ index dab1144..1ff2c2f 100644
  						
  						<span class="action-heading">{{ $t('task.detail.management') }}</span>
  
-@@ -681,6 +709,8 @@ import Description from '@/components/tasks/partials/Description.vue'
+@@ -684,6 +712,8 @@ import Description from '@/components/tasks/partials/Description.vue'
  import EditAssignees from '@/components/tasks/partials/EditAssignees.vue'
  import EditLabels from '@/components/tasks/partials/EditLabels.vue'
  import Heading from '@/components/tasks/partials/Heading.vue'
@@ -1667,7 +1675,7 @@ index dab1144..1ff2c2f 100644
  import ProjectSearch from '@/components/tasks/partials/ProjectSearch.vue'
  import PercentDoneSelect from '@/components/tasks/partials/PercentDoneSelect.vue'
  import PrioritySelect from '@/components/tasks/partials/PrioritySelect.vue'
-@@ -982,6 +1012,7 @@ type FieldType =
+@@ -1003,6 +1033,7 @@ type FieldType =
  	| 'dueDate'
  	| 'endDate'
  	| 'labels'
@@ -1675,7 +1683,7 @@ index dab1144..1ff2c2f 100644
  	| 'moveProject'
  	| 'percentDone'
  	| 'priority'
-@@ -998,6 +1029,7 @@ const activeFields: { [type in FieldType]: boolean } = reactive({
+@@ -1019,6 +1050,7 @@ const activeFields: { [type in FieldType]: boolean } = reactive({
  	dueDate: false,
  	endDate: false,
  	labels: false,
@@ -1683,7 +1691,7 @@ index dab1144..1ff2c2f 100644
  	moveProject: false,
  	percentDone: false,
  	priority: false,
-@@ -1023,6 +1055,13 @@ function setActiveFields() {
+@@ -1044,6 +1076,13 @@ function setActiveFields() {
  	activeFields.repeatAfter = (task.value.repeat_after ?? 0) > 0
  		|| task.value.repeat_mode !== TASK_REPEAT_MODES.REPEAT_MODE_DEFAULT
  	activeFields.startDate = Boolean(parseDateOrNull(task.value.start_date))
@@ -1697,7 +1705,7 @@ index dab1144..1ff2c2f 100644
  }
  
  watch(taskQuery.task, async (loaded, previous) => {
-@@ -1061,6 +1100,7 @@ const activeFieldElements: { [id in FieldType]: HTMLElement | null } = reactive(
+@@ -1081,6 +1120,7 @@ const activeFieldElements: { [id in FieldType]: HTMLElement | null } = reactive(
  	dueDate: null,
  	endDate: null,
  	labels: null,
@@ -1806,7 +1814,7 @@ index 964c638..35979cb 100644
 +	}
 +}
 diff --git a/pkg/routes/static.go b/pkg/routes/static.go
-index a2b01b7..3ee3e38 100644
+index b88b90b..e82eafe 100644
 --- a/pkg/routes/static.go
 +++ b/pkg/routes/static.go
 @@ -49,6 +49,7 @@ const (
@@ -1817,7 +1825,7 @@ index a2b01b7..3ee3e38 100644
  </script>`
  )
  
-@@ -93,6 +94,12 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
+@@ -96,6 +97,12 @@ func serveIndexFile(c *echo.Context, assetFs http.FileSystem) (err error) {
  		data["CUSTOM_LOGO_URL"] = config.ServiceCustomLogoURL.GetString()
  		data["CUSTOM_LOGO_URL_DARK"] = config.ServiceCustomLogoURLDark.GetString()
  
@@ -1832,16 +1840,17 @@ index a2b01b7..3ee3e38 100644
  			return err
 diff --git a/plugins/maps/main.go b/plugins/maps/main.go
 new file mode 100644
-index 0000000..948bf75
+index 0000000..95ab652
 --- /dev/null
 +++ b/plugins/maps/main.go
-@@ -0,0 +1,964 @@
+@@ -0,0 +1,1217 @@
 +//go:build ignore || test
 +
 +package main
 +
 +import (
 +	"bytes"
++	"container/list"
 +	"context"
 +	"encoding/json"
 +	"fmt"
@@ -1849,6 +1858,7 @@ index 0000000..948bf75
 +	"math"
 +	"net/http"
 +	"net/url"
++	"regexp"
 +	"strconv"
 +	"strings"
 +	"sync"
@@ -1913,13 +1923,16 @@ index 0000000..948bf75
 +}
 +
 +type cacheEntry struct {
++	key         string
 +	suggestions []GeocodeSuggestion
 +	expiresAt   time.Time
++	element     *list.Element
 +}
 +
 +type geocodeCache struct {
 +	sync.RWMutex
-+	entries    map[string]cacheEntry
++	entries    map[string]*cacheEntry
++	lruList    *list.List
 +	ttl        time.Duration
 +	negTTL     time.Duration
 +	maxEntries int
@@ -1935,7 +1948,8 @@ index 0000000..948bf75
 +		negTTL = 5 * time.Minute
 +	}
 +	c := &geocodeCache{
-+		entries:    make(map[string]cacheEntry),
++		entries:    make(map[string]*cacheEntry),
++		lruList:    list.New(),
 +		ttl:        ttl,
 +		negTTL:     negTTL,
 +		maxEntries: maxEntries,
@@ -1964,6 +1978,9 @@ index 0000000..948bf75
 +	defer c.Unlock()
 +	for k, v := range c.entries {
 +		if now.After(v.expiresAt) {
++			if v.element != nil {
++				c.lruList.Remove(v.element)
++			}
 +			delete(c.entries, k)
 +		}
 +	}
@@ -1984,28 +2001,40 @@ index 0000000..948bf75
 +	})
 +}
 +
-+func (c *geocodeCache) Get(provider, query string) ([]GeocodeSuggestion, bool) {
-+	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
-+	c.RLock()
-+	entry, exists := c.entries[key]
-+	c.RUnlock()
++func (c *geocodeCache) makeKey(provider, query string, lang ...string) string {
++	l := ""
++	if len(lang) > 0 {
++		l = strings.ToLower(strings.TrimSpace(lang[0]))
++	}
++	return strings.ToLower(strings.TrimSpace(provider)) + ":" + l + ":" + strings.ToLower(strings.TrimSpace(query))
++}
 +
++func (c *geocodeCache) Get(provider, query string, lang ...string) ([]GeocodeSuggestion, bool) {
++	key := c.makeKey(provider, query, lang...)
++	c.Lock()
++	defer c.Unlock()
++
++	entry, exists := c.entries[key]
 +	if !exists {
 +		return nil, false
 +	}
 +	if time.Now().After(entry.expiresAt) {
-+		c.Lock()
-+		if current, ok := c.entries[key]; ok && time.Now().After(current.expiresAt) {
-+			delete(c.entries, key)
++		if entry.element != nil {
++			c.lruList.Remove(entry.element)
 +		}
-+		c.Unlock()
++		delete(c.entries, key)
 +		return nil, false
++	}
++
++	// Move accessed entry to front of LRU list
++	if entry.element != nil {
++		c.lruList.MoveToFront(entry.element)
 +	}
 +	return entry.suggestions, true
 +}
 +
-+func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion) {
-+	key := strings.ToLower(provider) + ":" + strings.ToLower(strings.TrimSpace(query))
++func (c *geocodeCache) Set(provider, query string, suggestions []GeocodeSuggestion, lang ...string) {
++	key := c.makeKey(provider, query, lang...)
 +	now := time.Now()
 +	entryTTL := c.ttl
 +	if len(suggestions) == 0 {
@@ -2015,33 +2044,203 @@ index 0000000..948bf75
 +	c.Lock()
 +	defer c.Unlock()
 +
-+	if _, exists := c.entries[key]; exists {
-+		c.entries[key] = cacheEntry{
-+			suggestions: suggestions,
-+			expiresAt:   now.Add(entryTTL),
++	if entry, exists := c.entries[key]; exists {
++		entry.suggestions = suggestions
++		entry.expiresAt = now.Add(entryTTL)
++		if entry.element != nil {
++			c.lruList.MoveToFront(entry.element)
 +		}
 +		return
 +	}
 +
++	// Evict expired entries if at or over capacity
 +	if len(c.entries) >= c.maxEntries {
 +		for k, v := range c.entries {
 +			if now.After(v.expiresAt) {
++				if v.element != nil {
++					c.lruList.Remove(v.element)
++				}
 +				delete(c.entries, k)
 +			}
 +		}
 +	}
 +
-+	if len(c.entries) >= c.maxEntries {
-+		for k := range c.entries {
-+			delete(c.entries, k)
-+			break
++	// If still at capacity, evict the least recently used element (back of LRU list)
++	if len(c.entries) >= c.maxEntries && c.lruList.Len() > 0 {
++		back := c.lruList.Back()
++		if back != nil {
++			c.lruList.Remove(back)
++			if oldKey, ok := back.Value.(string); ok {
++				delete(c.entries, oldKey)
++			}
 +		}
 +	}
 +
-+	c.entries[key] = cacheEntry{
++	elem := c.lruList.PushFront(key)
++	c.entries[key] = &cacheEntry{
++		key:         key,
 +		suggestions: suggestions,
 +		expiresAt:   now.Add(entryTTL),
++		element:     elem,
 +	}
++}
++
++type clientBucket struct {
++	tokens     float64
++	lastRefill time.Time
++	lastAccess time.Time
++}
++
++type clientRateLimiter struct {
++	sync.Mutex
++	buckets  map[string]*clientBucket
++	rate     float64
++	burst    float64
++	stopChan chan struct{}
++	stopOnce sync.Once
++}
++
++func newClientRateLimiter(rate, burst float64) *clientRateLimiter {
++	l := &clientRateLimiter{
++		buckets:  make(map[string]*clientBucket),
++		rate:     rate,
++		burst:    burst,
++		stopChan: make(chan struct{}),
++	}
++	go l.runPruneLoop(10 * time.Minute)
++	return l
++}
++
++func (l *clientRateLimiter) Allow(clientKey string) bool {
++	l.Lock()
++	defer l.Unlock()
++
++	now := time.Now()
++	b, exists := l.buckets[clientKey]
++	if !exists {
++		l.buckets[clientKey] = &clientBucket{
++			tokens:     l.burst - 1.0,
++			lastRefill: now,
++			lastAccess: now,
++		}
++		return true
++	}
++
++	elapsed := now.Sub(b.lastRefill).Seconds()
++	b.tokens = math.Min(l.burst, b.tokens+elapsed*l.rate)
++	b.lastRefill = now
++	b.lastAccess = now
++
++	if b.tokens >= 1.0 {
++		b.tokens -= 1.0
++		return true
++	}
++
++	return false
++}
++
++func (l *clientRateLimiter) runPruneLoop(interval time.Duration) {
++	ticker := time.NewTicker(interval)
++	defer ticker.Stop()
++	for {
++		select {
++		case <-ticker.C:
++			l.prune()
++		case <-l.stopChan:
++			return
++		}
++	}
++}
++
++func (l *clientRateLimiter) prune() {
++	cutoff := time.Now().Add(-15 * time.Minute)
++	l.Lock()
++	defer l.Unlock()
++	for k, b := range l.buckets {
++		if b.lastAccess.Before(cutoff) {
++			delete(l.buckets, k)
++		}
++	}
++}
++
++func (l *clientRateLimiter) isClosed() bool {
++	select {
++	case <-l.stopChan:
++		return true
++	default:
++		return false
++	}
++}
++
++func (l *clientRateLimiter) Close() {
++	l.stopOnce.Do(func() {
++		close(l.stopChan)
++	})
++}
++
++func (l *clientRateLimiter) Reconfigure(rate, burst float64) {
++	l.Lock()
++	defer l.Unlock()
++	l.rate = rate
++	l.burst = burst
++	for _, b := range l.buckets {
++		if b.tokens > burst {
++			b.tokens = burst
++		}
++	}
++}
++
++func (l *clientRateLimiter) Rate() float64 {
++	l.Lock()
++	defer l.Unlock()
++	return l.rate
++}
++
++func (l *clientRateLimiter) Burst() float64 {
++	l.Lock()
++	defer l.Unlock()
++	return l.burst
++}
++
++var validLangRegex = regexp.MustCompile(`^[a-zA-Z]{2,5}(-[a-zA-Z0-9]{2,5})?$`)
++
++func resolveLanguage(c *echo.Context) string {
++	if lang := strings.TrimSpace(c.QueryParam("lang")); lang != "" {
++		if validLangRegex.MatchString(lang) {
++			return strings.ToLower(lang)
++		}
++	}
++
++	if cfgLang := strings.TrimSpace(viper.GetString("plugins.maps.lang")); cfgLang != "" {
++		if validLangRegex.MatchString(cfgLang) {
++			return strings.ToLower(cfgLang)
++		}
++	}
++
++	acceptLang := c.Request().Header.Get("Accept-Language")
++	if acceptLang != "" {
++		parts := strings.Split(acceptLang, ",")
++		if len(parts) > 0 {
++			primary := strings.TrimSpace(strings.Split(parts[0], ";")[0])
++			langCode := strings.Split(primary, "-")[0]
++			if validLangRegex.MatchString(langCode) {
++				return strings.ToLower(langCode)
++			}
++		}
++	}
++
++	return ""
++}
++
++func getClientKey(c *echo.Context) string {
++	if u, ok := c.Get("user").(*user.User); ok && u != nil && u.ID > 0 {
++		return fmt.Sprintf("user:%d", u.ID)
++	}
++	ip := c.RealIP()
++	if ip != "" {
++		return "ip:" + ip
++	}
++	return "unknown"
 +}
 +
 +type rateLimiter struct {
@@ -2097,7 +2296,10 @@ index 0000000..948bf75
 +	nominatimLimiter *rateLimiter
 +	photonLimiter    *rateLimiter
 +	googleLimiter    *rateLimiter
++	clientLimiter    *clientRateLimiter
 +}
++
++var registerEventsOnce sync.Once
 +
 +var singleton = &MapsPlugin{
 +	httpClient:       &http.Client{Timeout: 8 * time.Second},
@@ -2127,13 +2329,51 @@ index 0000000..948bf75
 +	return "1.0.0"
 +}
 +
++func (p *MapsPlugin) isClientRateLimitEnabled() bool {
++	if viper.IsSet("plugins.maps.client_rate_limit") {
++		return viper.GetFloat64("plugins.maps.client_rate_limit") > 0
++	}
++	return true
++}
++
++func (p *MapsPlugin) getClientRateSettings() (float64, float64) {
++	rate := 5.0
++	burst := 15.0
++	if viper.IsSet("plugins.maps.client_rate_limit") {
++		if r := viper.GetFloat64("plugins.maps.client_rate_limit"); r > 0 {
++			rate = r
++		}
++	}
++	if viper.IsSet("plugins.maps.client_rate_burst") {
++		if b := viper.GetFloat64("plugins.maps.client_rate_burst"); b > 0 {
++			burst = b
++		}
++	}
++	return rate, burst
++}
++
 +func (p *MapsPlugin) Init() error {
 +	if p.cache == nil || p.cache.isClosed() {
 +		p.cache = newGeocodeCache(24*time.Hour, 5*time.Minute, 5000)
 +	}
-+	events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
-+	events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
-+	events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
++	if p.isClientRateLimitEnabled() {
++		rate, burst := p.getClientRateSettings()
++		if p.clientLimiter == nil || p.clientLimiter.isClosed() {
++			p.clientLimiter = newClientRateLimiter(rate, burst)
++		} else {
++			p.clientLimiter.Reconfigure(rate, burst)
++		}
++	} else {
++		if p.clientLimiter != nil && !p.clientLimiter.isClosed() {
++			p.clientLimiter.Close()
++		}
++		p.clientLimiter = nil
++	}
++	registerEventsOnce.Do(func() {
++		events.RegisterListener((&models.TaskDeletedEvent{}).Name(), &TaskDeletedLocationCleanupListener{})
++		events.RegisterListener((&models.TaskUpdatedEvent{}).Name(), &TaskUpdatedLocationSyncListener{})
++		events.RegisterListener((&models.ProjectDeletedEvent{}).Name(), &ProjectDeletedLocationCleanupListener{})
++	})
 +	log.Infof("Vikunja Maps plugin initialized (provider=%s)", p.getProvider())
 +	return nil
 +}
@@ -2142,6 +2382,10 @@ index 0000000..948bf75
 +	log.Infof("Vikunja Maps plugin shutting down")
 +	if p.cache != nil {
 +		p.cache.Close()
++	}
++	if p.clientLimiter != nil {
++		p.clientLimiter.Close()
++		p.clientLimiter = nil
 +	}
 +	return nil
 +}
@@ -2206,10 +2450,20 @@ index 0000000..948bf75
 +		query = query[:maxGeocodeQueryLen]
 +	}
 +
-+	provider := p.getProvider()
++	// Per-client / per-user rate limiting
++	if p.isClientRateLimitEnabled() && p.clientLimiter != nil {
++		clientKey := getClientKey(c)
++		if !p.clientLimiter.Allow(clientKey) {
++			c.Response().Header().Set("Retry-After", "1")
++			return echo.NewHTTPError(http.StatusTooManyRequests, "Geocoding rate limit exceeded. Please wait a moment before searching again.")
++		}
++	}
 +
-+	// Check cache first
-+	if cached, found := p.cache.Get(provider, query); found {
++	provider := p.getProvider()
++	lang := resolveLanguage(c)
++
++	// Check cache first (partitioned by provider, lang, and query)
++	if cached, found := p.cache.Get(provider, query, lang); found {
 +		return c.JSON(http.StatusOK, cached)
 +	}
 +
@@ -2224,9 +2478,9 @@ index 0000000..948bf75
 +	case "google":
 +		results, err = p.searchGooglePlaces(query, reqCtx)
 +	case "nominatim":
-+		results, err = p.searchNominatim(query, reqCtx)
++		results, err = p.searchNominatim(query, lang, reqCtx)
 +	default: // "photon"
-+		results, err = p.searchPhoton(query, reqCtx)
++		results, err = p.searchPhoton(query, lang, reqCtx)
 +	}
 +
 +	if err != nil {
@@ -2235,12 +2489,12 @@ index 0000000..948bf75
 +	}
 +
 +	// Cache both positive results and empty results (negative caching with shorter TTL)
-+	p.cache.Set(provider, query, results)
++	p.cache.Set(provider, query, results, lang)
 +
 +	return c.JSON(http.StatusOK, results)
 +}
 +
-+func (p *MapsPlugin) searchPhoton(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
++func (p *MapsPlugin) searchPhoton(query, lang string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
 +	reqCtx := context.Background()
 +	if len(ctx) > 0 && ctx[0] != nil {
 +		reqCtx = ctx[0]
@@ -2263,6 +2517,9 @@ index 0000000..948bf75
 +	q := u.Query()
 +	q.Set("q", query)
 +	q.Set("limit", "6")
++	if lang != "" {
++		q.Set("lang", lang)
++	}
 +	u.RawQuery = q.Encode()
 +
 +	req, err := http.NewRequestWithContext(reqCtx, "GET", u.String(), nil)
@@ -2451,7 +2708,7 @@ index 0000000..948bf75
 +	return suggestions, nil
 +}
 +
-+func (p *MapsPlugin) searchNominatim(query string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
++func (p *MapsPlugin) searchNominatim(query, lang string, ctx ...context.Context) ([]GeocodeSuggestion, error) {
 +	reqCtx := context.Background()
 +	if len(ctx) > 0 && ctx[0] != nil {
 +		reqCtx = ctx[0]
@@ -2489,7 +2746,11 @@ index 0000000..948bf75
 +	}
 +	req.Header.Set("User-Agent", userAgent)
 +	req.Header.Set("Accept", "application/json")
-+	req.Header.Set("Accept-Language", "en")
++	if lang != "" {
++		req.Header.Set("Accept-Language", lang)
++	} else {
++		req.Header.Set("Accept-Language", "en")
++	}
 +
 +	resp, err := p.httpClient.Do(req)
 +	if err != nil {
