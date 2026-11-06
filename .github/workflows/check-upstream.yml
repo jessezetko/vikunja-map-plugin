@@ -97,7 +97,7 @@ jobs:
               --title "$ISSUE_TITLE" \
               --body "Automated check detected that \`vikunja-core-maps.patch\` failed \`git apply --check\` against upstream Vikunja release **${TAG}**.
 
-              Changes to upstream frontend dependencies (\`package.json\` / \`pnpm-lock.yaml\`) or core models may require updating the integration patch.
+              Changes to upstream core models or frontend views may require updating the integration patch.
 
               Direct push to \`main\` has been blocked to ensure latest GHCR container builds remain stable."
           fi
@@ -141,7 +141,7 @@ jobs:
           # Update Dockerfile and CI workflow references using helper script
           ./scripts/update-vikunja-version.py "${TAG}" "${{ steps.upstream.outputs.current_ref }}"
 
-          git add Dockerfile .github/workflows/ci.yml
+          git add Dockerfile .github/workflows/ci.yml install.sh
           git commit -m "chore(deps): bump Vikunja base to ${TAG}"
           git push -u origin "$BRANCH_NAME" --force
 

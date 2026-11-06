@@ -20,6 +20,8 @@ COPY plugins/maps/main.go /app/plugins/maps/main.go
 WORKDIR /app/frontend
 RUN npm install -g corepack && corepack enable && \
     pnpm install --frozen-lockfile && \
+    pnpm add leaflet@^1.9.4 && \
+    pnpm add -D @types/leaflet@^1.9.22 && \
     pnpm run build
 
 # Stage 2: Build Static Vikunja Go Binary

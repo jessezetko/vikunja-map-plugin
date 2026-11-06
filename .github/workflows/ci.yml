@@ -76,6 +76,8 @@ jobs:
           cp ../plugin/frontend/src/components/project/views/ProjectViewMap.spec.ts frontend/src/components/project/views/ProjectViewMap.spec.ts
           cd frontend
           pnpm install --frozen-lockfile
+          pnpm add leaflet@^1.9.4
+          pnpm add -D @types/leaflet@^1.9.22
           pnpm test:unit LocationSearchField.spec.ts ProjectViewMap.spec.ts --run
 
   verify-installer:
