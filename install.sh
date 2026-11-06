@@ -26,8 +26,16 @@ fi
 # Pre-flight check 3: Target revision check
 CURRENT_REF="$(cd "${TARGET_DIR}" && git describe --tags --always 2>/dev/null || echo "unknown")"
 echo "    Target Vikunja revision: ${CURRENT_REF}"
-if [[ "${CURRENT_REF}" != *"v2.7.0"* && "${CURRENT_REF}" != *"v2.7.1"* && "${CURRENT_REF}" != *"v2.8.0"* ]]; then
-    echo "    Notice: The maps patch was tested against Vikunja v2.7.0, v2.7.1, and v2.8.0. Current ref is '${CURRENT_REF}'."
+TESTED_VIKUNJA_VERSIONS=("v2.7.0" "v2.7.1" "v2.8.0")
+IS_TESTED=false
+for ver in "${TESTED_VIKUNJA_VERSIONS[@]}"; do
+    if [[ "${CURRENT_REF}" == *"${ver}"* ]]; then
+        IS_TESTED=true
+        break
+    fi
+done
+if [ "$IS_TESTED" = false ]; then
+    echo "    Notice: The maps patch was tested against Vikunja ${TESTED_VIKUNJA_VERSIONS[*]}. Current ref is '${CURRENT_REF}'."
 fi
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -64,11 +72,11 @@ if [ -d "${TARGET_DIR}/frontend" ]; then
     echo "--> Installing frontend dependencies..."
     (cd "${TARGET_DIR}/frontend" && {
         if command -v pnpm >/dev/null 2>&1; then
-            pnpm install || echo "    Warning: 'pnpm install' failed. Please run 'pnpm install' manually inside ${TARGET_DIR}/frontend"
+            pnpm add leaflet@^1.9.4 && pnpm add -D @types/leaflet@^1.9.22 || echo "    Warning: 'pnpm add' failed. Please run 'pnpm add leaflet@^1.9.4 && pnpm add -D @types/leaflet@^1.9.22' manually inside ${TARGET_DIR}/frontend"
         elif command -v corepack >/dev/null 2>&1; then
-            corepack pnpm install || echo "    Warning: 'corepack pnpm install' failed. Please run 'pnpm install' manually inside ${TARGET_DIR}/frontend"
+            corepack pnpm add leaflet@^1.9.4 && corepack pnpm add -D @types/leaflet@^1.9.22 || echo "    Warning: 'corepack pnpm add' failed. Please run 'pnpm add leaflet@^1.9.4 && pnpm add -D @types/leaflet@^1.9.22' manually inside ${TARGET_DIR}/frontend"
         else
-            echo "    Note: Please run 'pnpm install' inside ${TARGET_DIR}/frontend"
+            echo "    Note: Please run 'pnpm add leaflet@^1.9.4 && pnpm add -D @types/leaflet@^1.9.22' inside ${TARGET_DIR}/frontend"
         fi
     }) || true
 fi

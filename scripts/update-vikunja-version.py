@@ -24,6 +24,7 @@ def main():
     repo_root = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
     dockerfile_path = os.path.join(repo_root, "Dockerfile")
     ci_workflow_path = os.path.join(repo_root, ".github", "workflows", "ci.yml")
+    install_script_path = os.path.join(repo_root, "install.sh")
 
     # Read current ref from Dockerfile if not explicitly passed
     if len(sys.argv) >= 3 and sys.argv[2].strip():
@@ -64,7 +65,21 @@ def main():
     with open(ci_workflow_path, "w", encoding="utf-8") as f:
         f.write(ci_updated)
 
-    print("Successfully updated Dockerfile and CI workflow.")
+    # 3. Update install.sh TESTED_VIKUNJA_VERSIONS
+    if os.path.exists(install_script_path):
+        with open(install_script_path, "r", encoding="utf-8") as f:
+            install_content = f.read()
+
+        if f'"{new_tag}"' not in install_content:
+            install_updated = re.sub(
+                r'TESTED_VIKUNJA_VERSIONS=\((.*?)\)',
+                lambda m: f'TESTED_VIKUNJA_VERSIONS=({m.group(1).rstrip()} "{new_tag}")',
+                install_content,
+            )
+            with open(install_script_path, "w", encoding="utf-8") as f:
+                f.write(install_updated)
+
+    print("Successfully updated Dockerfile, CI workflow, and install.sh.")
 
 if __name__ == "__main__":
     main()
